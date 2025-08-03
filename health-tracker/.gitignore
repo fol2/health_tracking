@@ -50,3 +50,7 @@ next-env.d.ts
 /public/worker-*.js.map
 
 /src/generated/prisma
+
+# credentials
+client_secret_*.json
+*credentials*.json

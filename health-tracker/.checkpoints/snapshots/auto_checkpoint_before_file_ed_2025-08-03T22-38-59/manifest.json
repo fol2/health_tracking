@@ -1,13 +1,16 @@
 {
-  "name": "auto_checkpoint_before_file_ed_2025-08-03T20-08-56",
-  "timestamp": "2025-08-03T20:08:56.116Z",
+  "name": "auto_checkpoint_before_file_ed_2025-08-03T22-38-59",
+  "timestamp": "2025-08-03T22:38:59.022Z",
   "description": "Auto checkpoint before file edit",
   "files": [
     ".env.example",
     ".gitignore",
     ".prettierrc",
     "DATABASE_SETUP.md",
+    "DEPLOYMENT.md",
     "README.md",
+    "VERCEL_SETUP_GUIDE.md",
+    "client_secret_805096516241-b0nkeulg0de279clilrn2njpb51j47oa.apps.googleusercontent.com.json",
     "components.json",
     "eslint.config.mjs",
     "middleware.ts",
@@ -25,7 +28,10 @@
     "public/next.svg",
     "public/vercel.svg",
     "public/window.svg",
+    "scripts/deploy.sh",
+    "scripts/final-test.sh",
     "scripts/generate-icons.js",
+    "scripts/test-deployment.sh",
     "src/app/analytics/page.tsx",
     "src/app/api/analytics/export/route.ts",
     "src/app/api/analytics/fasting/route.ts",
@@ -157,6 +163,6 @@
     "tsconfig.json",
     "vercel.json"
   ],
-  "fileCount": 153,
-  "totalSize": 1013811
+  "fileCount": 159,
+  "totalSize": 1033335
 }
