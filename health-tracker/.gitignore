@@ -54,3 +54,6 @@ next-env.d.ts
 # credentials
 client_secret_*.json
 *credentials*.json
+
+# llm
+.checkpoints/
