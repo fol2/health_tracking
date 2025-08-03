@@ -1,0 +1,181 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("POSTGRES_PRISMA_URL") // uses connection pooling
+  directUrl = env("POSTGRES_URL_NON_POOLING") // uses a direct connection
+}
+
+// NextAuth models
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  accounts         Account[]
+  sessions         Session[]
+  profile          UserProfile?
+  fastingSessions  FastingSession[]
+  weightRecords    WeightRecord[]
+  healthMetrics    HealthMetric[]
+  scheduledFasts   ScheduledFast[]
+  reminders        Reminder[]
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// Application-specific models
+model UserProfile {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  height          Float?   // in cm
+  targetWeight    Float?   // in kg
+  timezone        String   @default("UTC")
+  unitsPreference String   @default("metric") // "metric" or "imperial"
+  dateOfBirth     DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model FastingSession {
+  id          String    @id @default(cuid())
+  userId      String
+  startTime   DateTime
+  endTime     DateTime?
+  type        String    // e.g., "16:8", "18:6", "24h", "custom"
+  targetHours Int       // target fasting duration in hours
+  status      String    @default("active") // "active", "completed", "cancelled"
+  notes       String?   @db.Text
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, startTime])
+  @@index([userId, status])
+}
+
+model WeightRecord {
+  id         String   @id @default(cuid())
+  userId     String
+  weight     Float    // in kg
+  recordedAt DateTime @default(now())
+  notes      String?  @db.Text
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, recordedAt])
+}
+
+model HealthMetric {
+  id         String   @id @default(cuid())
+  userId     String
+  metricType String   // e.g., "blood_pressure", "heart_rate", "blood_glucose"
+  value      Json     // flexible JSON to store different metric types
+  unit       String?  // e.g., "mmHg", "bpm", "mg/dL"
+  recordedAt DateTime @default(now())
+  notes      String?  @db.Text
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, metricType, recordedAt])
+}
+
+model ScheduledFast {
+  id                String     @id @default(cuid())
+  userId            String
+  scheduledStart    DateTime
+  scheduledEnd      DateTime
+  type              String     // e.g., "16:8", "18:6", "24h", "custom"
+  isRecurring       Boolean    @default(false)
+  recurrencePattern Json?      // JSON object for recurrence rules
+  reminderTime      Int?       // minutes before start to send reminder
+  isActive          Boolean    @default(true)
+  parentId          String?    // For recurring instances, reference to parent
+  notes             String?    @db.Text
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reminders Reminder[]
+  parent    ScheduledFast?  @relation("RecurringFasts", fields: [parentId], references: [id], onDelete: Cascade)
+  children  ScheduledFast[] @relation("RecurringFasts")
+
+  @@index([userId, scheduledStart])
+  @@index([userId, isActive])
+  @@index([parentId])
+}
+
+model Reminder {
+  id              String   @id @default(cuid())
+  userId          String
+  scheduledFastId String?
+  reminderTime    DateTime
+  type            String   // e.g., "fast_start", "fast_end", "weight_check", "custom"
+  isActive        Boolean  @default(true)
+  isSent          Boolean  @default(false)
+  sentAt          DateTime?
+  message         String?  @db.Text
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  scheduledFast ScheduledFast? @relation(fields: [scheduledFastId], references: [id], onDelete: Cascade)
+
+  @@index([userId, reminderTime])
+  @@index([isSent, reminderTime])
+  @@index([isActive, reminderTime])
+}
