@@ -1,12 +1,13 @@
 {
-  "name": "auto_checkpoint_before_file_ed_2025-08-03T20-06-07",
-  "timestamp": "2025-08-03T20:06:07.507Z",
+  "name": "auto_checkpoint_before_file_ed_2025-08-03T20-21-05",
+  "timestamp": "2025-08-03T20:21:05.959Z",
   "description": "Auto checkpoint before file edit",
   "files": [
     ".env.example",
     ".gitignore",
     ".prettierrc",
     "DATABASE_SETUP.md",
+    "DEPLOYMENT.md",
     "README.md",
     "components.json",
     "eslint.config.mjs",
@@ -25,6 +26,7 @@
     "public/next.svg",
     "public/vercel.svg",
     "public/window.svg",
+    "scripts/deploy.sh",
     "scripts/generate-icons.js",
     "src/app/analytics/page.tsx",
     "src/app/api/analytics/export/route.ts",
@@ -157,6 +159,6 @@
     "tsconfig.json",
     "vercel.json"
   ],
-  "fileCount": 153,
-  "totalSize": 1013678
+  "fileCount": 155,
+  "totalSize": 1023930
 }
