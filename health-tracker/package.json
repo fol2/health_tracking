@@ -14,7 +14,19 @@
     "db:migrate": "prisma migrate dev",
     "db:seed": "prisma db seed",
     "db:studio": "prisma studio",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "test": "playwright test",
+    "test:ui": "playwright test --ui",
+    "test:debug": "playwright test --debug",
+    "test:report": "playwright show-report",
+    "test:e2e": "playwright test tests/e2e",
+    "test:components": "playwright test tests/components",
+    "test:headed": "playwright test --headed",
+    "test:chrome": "playwright test --project=chromium",
+    "test:mobile": "playwright test --project='Mobile Chrome' --project='Mobile Safari'",
+    "test:prod": "playwright test --config=playwright.config.prod.ts",
+    "test:prod:ui": "playwright test --config=playwright.config.prod.ts --ui",
+    "test:prod:specific": "playwright test --config=playwright.config.prod.ts tests/e2e/production.spec.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
@@ -62,6 +74,7 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
+    "@playwright/test": "^1.54.2",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20.19.9",
     "@types/react": "^19",

@@ -8,8 +8,8 @@ export const authConfig: NextAuthConfig = {
   adapter: PrismaAdapter(prisma),
   providers: [
     Google({
-      clientId: process.env.GOOGLE_CLIENT_ID!.trim(),
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET!.trim(),
+      clientId: process.env.GOOGLE_CLIENT_ID!,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
       authorization: {
         params: {
           prompt: "consent",
@@ -57,6 +57,7 @@ export const authConfig: NextAuthConfig = {
       return token
     },
   },
+  debug: process.env.NODE_ENV === "development", // 添加調試模式
 }
 
 export const { handlers, auth, signIn, signOut } = NextAuth(authConfig)
