@@ -171,7 +171,7 @@ export function ScheduledList({ onEdit, className }: ScheduledListProps) {
                         </div>
                         <div className="flex items-center gap-1">
                           <Clock className="h-3.5 w-3.5" />
-                          <span>{format(startDate, 'p')} ({formatDuration(fast.scheduledStart, fast.scheduledEnd)})</span>
+                          <span>{format(startDate, 'p')} ({formatDuration(fast.scheduledStart.toString(), fast.scheduledEnd.toString())})</span>
                         </div>
                       </div>
 
