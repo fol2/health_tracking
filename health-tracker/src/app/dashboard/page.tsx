@@ -26,8 +26,8 @@ export default async function DashboardPage() {
   ])
 
   // Calculate BMI if we have both weight and height
-  let bmi = null
-  let previousBmi = null
+  let bmi: number | null = null
+  let previousBmi: number | null = null
   if (profile?.height) {
     if (latestWeight?.weight) {
       bmi = calculateBMI(latestWeight.weight, profile.height)
@@ -39,7 +39,7 @@ export default async function DashboardPage() {
   }
 
   // Calculate weight trend
-  let weightTrend = null
+  let weightTrend: number | null = null
   if (weightHistory.length >= 2) {
     const currentWeight = weightHistory[0].weight
     const previousWeight = weightHistory[1].weight
@@ -50,7 +50,7 @@ export default async function DashboardPage() {
   const upcomingFast = upcomingFasts.length > 0 ? upcomingFasts[0] : null
 
   // Format date on server to avoid hydration mismatch
-  let lastWeightDateFormatted = null
+  let lastWeightDateFormatted: string | null = null
   if (latestWeight?.recordedAt) {
     const date = new Date(latestWeight.recordedAt)
     const month = date.toLocaleDateString('en-US', { month: 'short' })
