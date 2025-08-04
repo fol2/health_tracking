@@ -1,5 +1,11 @@
 [
   {
+    "timestamp": "2025-08-04T02:34:18.790Z",
+    "action": "CREATE_CHECKPOINT",
+    "description": "Created checkpoint: auto_checkpoint_before_file_ed_2025-08-04T02-34-18",
+    "details": "Auto checkpoint before file edit"
+  },
+  {
     "timestamp": "2025-08-04T02:31:07.122Z",
     "action": "CREATE_CHECKPOINT",
     "description": "Created checkpoint: auto_checkpoint_before_file_ed_2025-08-04T02-31-07",
@@ -291,12 +297,6 @@
     "timestamp": "2025-08-04T01:32:13.560Z",
     "action": "CREATE_CHECKPOINT",
     "description": "Created checkpoint: auto_checkpoint_before_file_ed_2025-08-04T01-32-13",
-    "details": "Auto checkpoint before file edit"
-  },
-  {
-    "timestamp": "2025-08-04T01:31:48.987Z",
-    "action": "CREATE_CHECKPOINT",
-    "description": "Created checkpoint: auto_checkpoint_before_file_ed_2025-08-04T01-31-48",
     "details": "Auto checkpoint before file edit"
   }
 ]
