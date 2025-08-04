@@ -5,6 +5,7 @@ import { Calendar as CalendarIcon, List, Plus, Settings } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { DashboardLayout } from '@/components/layouts/dashboard-layout'
 import { Calendar } from '@/components/schedule/calendar'
 import { ScheduleForm } from '@/components/schedule/schedule-form'
 import { ScheduledList } from '@/components/schedule/scheduled-list'
@@ -37,7 +38,8 @@ export default function SchedulePage() {
 
   return (
     <ProtectedRoute>
-      <div className="container max-w-7xl mx-auto py-6 px-4 space-y-6">
+      <DashboardLayout>
+        <div className="container max-w-7xl mx-auto py-6 px-4 space-y-6">
         {/* Page Header */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
@@ -128,6 +130,7 @@ export default function SchedulePage() {
           </DialogContent>
         </Dialog>
       </div>
+      </DashboardLayout>
     </ProtectedRoute>
   )
 }

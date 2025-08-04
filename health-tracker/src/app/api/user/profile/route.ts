@@ -31,7 +31,19 @@ export async function POST(request: Request) {
 
   try {
     const data = await request.json()
-    const profile = await UserService.updateProfile(session.user.id, data)
+    
+    // Remove name from profile data since it's not a UserProfile field
+    const { name, ...profileData } = data
+    
+    // Update user name if provided
+    if (name) {
+      await prisma.user.update({
+        where: { id: session.user.id },
+        data: { name }
+      })
+    }
+    
+    const profile = await UserService.updateProfile(session.user.id, profileData)
     return NextResponse.json({ profile })
   } catch (error) {
     console.error('Error creating profile:', error)
@@ -60,10 +72,21 @@ export async function PUT(request: Request) {
       })
     }
     
-    const profile = await UserService.updateProfile(session.user.id, data)
+    // Remove name from profile data since it's not a UserProfile field
+    const { name, ...profileData } = data
+    const profile = await UserService.updateProfile(session.user.id, profileData)
     return NextResponse.json({ profile })
   } catch (error) {
     console.error('Error updating profile:', error)
+    
+    // Return more specific error message
+    if (error instanceof Error) {
+      return NextResponse.json(
+        { error: error.message },
+        { status: 500 }
+      )
+    }
+    
     return NextResponse.json(
       { error: 'Failed to update profile' },
       { status: 500 }

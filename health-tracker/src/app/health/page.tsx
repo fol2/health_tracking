@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { ProtectedRoute } from '@/components/auth/protected-route'
+import { DashboardLayout } from '@/components/layouts/dashboard-layout'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { WeightInput } from '@/components/health/weight-input'
 import { WeightHistory } from '@/components/health/weight-history'
@@ -22,7 +23,8 @@ export default function HealthPage() {
 
   return (
     <ProtectedRoute>
-      <div className="container mx-auto py-6 px-4 max-w-7xl">
+      <DashboardLayout>
+        <div className="container mx-auto py-6 px-4 max-w-7xl">
         <div className="mb-6">
           <h1 className="text-3xl font-bold">Health Tracking</h1>
           <p className="text-muted-foreground mt-2">
@@ -85,6 +87,7 @@ export default function HealthPage() {
         {/* Floating Action Button for Quick Weight Entry */}
         <WeightInput compact onSuccess={handleWeightAdded} />
       </div>
+      </DashboardLayout>
     </ProtectedRoute>
   )
 }

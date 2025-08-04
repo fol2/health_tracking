@@ -3,6 +3,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
 import { LucideIcon } from "lucide-react"
+import { ReactNode } from "react"
 
 interface StatCardProps {
   title: string
@@ -10,9 +11,12 @@ interface StatCardProps {
   description?: string
   icon?: LucideIcon
   trend?: {
-    value: number
+    value: number | string
     label: string
+    icon?: LucideIcon
+    color?: string
   }
+  customElement?: ReactNode
   className?: string
 }
 
@@ -22,9 +26,10 @@ export function StatCard({
   description,
   icon: Icon,
   trend,
+  customElement,
   className,
 }: StatCardProps) {
-  const isPositiveTrend = trend && trend.value > 0
+  const TrendIcon = trend?.icon
 
   return (
     <Card className={cn("transition-all hover:shadow-lg", className)}>
@@ -37,17 +42,24 @@ export function StatCard({
         {description && (
           <CardDescription className="mt-1">{description}</CardDescription>
         )}
+        {customElement && (
+          <div className="mt-3">
+            {customElement}
+          </div>
+        )}
         {trend && (
-          <div className="mt-2 flex items-center text-xs">
-            <span
-              className={cn(
-                "font-medium",
-                isPositiveTrend ? "text-green-600" : "text-red-600"
-              )}
-            >
-              {isPositiveTrend ? "+" : ""}{trend.value}%
+          <div className="mt-2 flex items-center gap-1 text-xs">
+            {TrendIcon && (
+              <TrendIcon 
+                className={cn(
+                  "h-3 w-3",
+                  trend.color || "text-muted-foreground"
+                )} 
+              />
+            )}
+            <span className={cn("font-medium", trend.color)}>
+              {trend.label}
             </span>
-            <span className="ml-1 text-muted-foreground">{trend.label}</span>
           </div>
         )}
       </CardContent>

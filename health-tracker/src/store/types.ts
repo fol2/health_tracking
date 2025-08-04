@@ -97,7 +97,7 @@ export interface FastingStats {
 
 export interface FastingSessionActions {
   // Session management
-  startSession: (data: { type: string; targetHours: number; notes?: string }) => Promise<void>
+  startSession: (data: { type: string; targetHours: number; notes?: string; startTime?: Date }) => Promise<void>
   endSession: () => Promise<void>
   cancelSession: () => Promise<void>
   fetchActiveSession: () => Promise<void>

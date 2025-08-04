@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils"
 import { 
   Home, 
   Timer, 
-  Scale, 
+  Calendar,
   Heart,
   BarChart3
 } from "lucide-react"
@@ -14,7 +14,7 @@ import {
 const navigation = [
   { name: "Home", href: "/dashboard", icon: Home },
   { name: "Fast", href: "/fasting", icon: Timer },
-  { name: "Weight", href: "/weight", icon: Scale },
+  { name: "Schedule", href: "/schedule", icon: Calendar },
   { name: "Health", href: "/health", icon: Heart },
   { name: "Stats", href: "/analytics", icon: BarChart3 },
 ]

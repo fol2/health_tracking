@@ -103,15 +103,24 @@ export class FastingService {
    * Get fasting statistics for a user
    */
   static async getUserStats(userId: string) {
-    const sessions = await prisma.fastingSession.findMany({
-      where: {
-        userId,
-        status: 'completed',
-      },
-      orderBy: { startTime: 'desc' },
-    })
+    // Get both completed and active sessions
+    const [completedSessions, activeSession] = await Promise.all([
+      prisma.fastingSession.findMany({
+        where: {
+          userId,
+          status: 'completed',
+        },
+        orderBy: { startTime: 'desc' },
+      }),
+      prisma.fastingSession.findFirst({
+        where: {
+          userId,
+          status: 'active',
+        },
+      }),
+    ])
 
-    if (sessions.length === 0) {
+    if (completedSessions.length === 0 && !activeSession) {
       return {
         totalSessions: 0,
         totalHours: 0,
@@ -122,8 +131,8 @@ export class FastingService {
       }
     }
 
-    // Calculate total hours
-    const totalHours = sessions.reduce((sum, session) => {
+    // Calculate total hours from completed sessions
+    let totalHours = completedSessions.reduce((sum, session) => {
       if (session.endTime) {
         const duration = (session.endTime.getTime() - session.startTime.getTime()) / (1000 * 60 * 60)
         return sum + duration
@@ -131,30 +140,41 @@ export class FastingService {
       return sum
     }, 0)
 
-    // Calculate longest fast
-    const longestFast = Math.max(...sessions.map(session => {
-      if (session.endTime) {
-        return (session.endTime.getTime() - session.startTime.getTime()) / (1000 * 60 * 60)
-      }
-      return 0
-    }))
+    // Add hours from active session if exists
+    if (activeSession) {
+      const currentDuration = (new Date().getTime() - activeSession.startTime.getTime()) / (1000 * 60 * 60)
+      totalHours += currentDuration
+    }
 
-    // Calculate streaks
-    const { currentStreak, longestStreak } = this.calculateStreaks(sessions)
+    // Calculate longest fast (including current active session)
+    const allDurations = [
+      ...completedSessions.map(session => {
+        if (session.endTime) {
+          return (session.endTime.getTime() - session.startTime.getTime()) / (1000 * 60 * 60)
+        }
+        return 0
+      }),
+      // Include active session duration if exists
+      activeSession ? (new Date().getTime() - activeSession.startTime.getTime()) / (1000 * 60 * 60) : 0
+    ]
+    const longestFast = Math.max(...allDurations, 0)
+
+    // Calculate streaks (only uses completed sessions)
+    const { currentStreak, longestStreak } = this.calculateStreaks(completedSessions)
 
     // Calculate completion rate
     const allSessions = await prisma.fastingSession.findMany({
       where: { userId },
     })
-    const completedSessions = allSessions.filter(s => s.status === 'completed').length
+    const completedSessionsCount = allSessions.filter(s => s.status === 'completed').length
     const completionRate = allSessions.length > 0
-      ? Math.round((completedSessions / allSessions.length) * 100)
+      ? Math.round((completedSessionsCount / allSessions.length) * 100)
       : 0
 
     return {
-      totalSessions: sessions.length,
+      totalSessions: completedSessions.length,
       totalHours: Math.round(totalHours),
-      averageHours: Math.round(totalHours / sessions.length),
+      averageHours: completedSessions.length > 0 ? Math.round(totalHours / completedSessions.length) : 0,
       longestFast: Math.round(longestFast),
       currentStreak,
       longestStreak,

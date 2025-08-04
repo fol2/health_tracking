@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react'
 import { ProtectedRoute } from '@/components/auth/protected-route'
+import { DashboardLayout } from '@/components/layouts/dashboard-layout'
 import { FastingTimer } from '@/components/fasting/fasting-timer'
 import { FastingControls } from '@/components/fasting/fasting-controls'
 import { FastingHistory } from '@/components/fasting/fasting-history'
@@ -23,7 +24,8 @@ export default function FastingPage() {
 
   return (
     <ProtectedRoute>
-      <div className="container mx-auto py-6 px-4 max-w-7xl">
+      <DashboardLayout>
+        <div className="container mx-auto py-6 px-4 max-w-7xl">
         <div className="mb-8">
           <h1 className="text-3xl font-bold mb-2">Fasting Tracker</h1>
           <p className="text-muted-foreground">
@@ -62,6 +64,7 @@ export default function FastingPage() {
           </TabsContent>
         </Tabs>
       </div>
+      </DashboardLayout>
     </ProtectedRoute>
   )
 }

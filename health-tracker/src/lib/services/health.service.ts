@@ -158,4 +158,52 @@ export class HealthService {
       latestMetrics,
     }
   }
+
+  /**
+   * Get recent activities
+   */
+  static async getRecentActivities(userId: string, limit = 10) {
+    const [
+      recentWeights,
+      recentMetrics,
+      recentFasts,
+    ] = await Promise.all([
+      prisma.weightRecord.findMany({
+        where: { userId },
+        orderBy: { recordedAt: 'desc' },
+        take: limit,
+      }),
+      prisma.healthMetric.findMany({
+        where: { userId },
+        orderBy: { recordedAt: 'desc' },
+        take: limit,
+      }),
+      prisma.fastingSession.findMany({
+        where: { userId },
+        orderBy: { startTime: 'desc' },
+        take: limit,
+      }),
+    ])
+
+    // Combine and sort all activities by date
+    const activities = [
+      ...recentWeights.map(w => ({
+        type: 'weight' as const,
+        date: w.recordedAt,
+        data: w,
+      })),
+      ...recentMetrics.map(m => ({
+        type: 'metric' as const,
+        date: m.recordedAt,
+        data: m,
+      })),
+      ...recentFasts.map(f => ({
+        type: 'fasting' as const,
+        date: f.startTime,
+        data: f,
+      })),
+    ].sort((a, b) => b.date.getTime() - a.date.getTime()).slice(0, limit)
+
+    return activities
+  }
 }

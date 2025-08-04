@@ -40,7 +40,7 @@ export const useFastingSessionStore = create<FastingSessionStore>()(
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                 ...data,
-                startTime: new Date(),
+                startTime: data.startTime || new Date(),
               }),
             })
 

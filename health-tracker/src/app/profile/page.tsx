@@ -102,12 +102,15 @@ export default function ProfilePage() {
       })
 
       if (!response.ok) {
-        throw new Error("Failed to update profile")
+        const errorData = await response.json().catch(() => ({}))
+        console.error("Profile update failed:", { status: response.status, error: errorData })
+        throw new Error(errorData.error || "Failed to update profile")
       }
 
       toast.success("Profile updated successfully!")
     } catch (error) {
-      toast.error("Failed to update profile. Please try again.")
+      const errorMessage = error instanceof Error ? error.message : "Failed to update profile"
+      toast.error(errorMessage)
       console.error("Profile update error:", error)
     } finally {
       setIsSaving(false)

@@ -9,6 +9,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { useFastingSessionStore } from '@/store'
 import { Clock, Calendar, Coffee, Utensils } from 'lucide-react'
 import { toast } from 'sonner'
+import { format } from 'date-fns'
 
 interface FastingType {
   id: string
@@ -62,6 +63,11 @@ export function FastingControls() {
   const [customHours, setCustomHours] = useState<string>('')
   const [notes, setNotes] = useState<string>('')
   const [isStarting, setIsStarting] = useState(false)
+  
+  // Initialize with current date/time
+  const now = new Date()
+  const [startDate, setStartDate] = useState<string>(format(now, 'yyyy-MM-dd'))
+  const [startTime, setStartTime] = useState<string>(format(now, 'HH:mm'))
 
   const handleStartFast = async () => {
     if (!selectedType && !customHours) {
@@ -81,10 +87,14 @@ export function FastingControls() {
         return
       }
 
+      // Combine date and time
+      const startDateTime = new Date(`${startDate}T${startTime}`)
+      
       await startSession({
         type,
         targetHours: hours,
         notes: notes.trim() || undefined,
+        startTime: startDateTime,
       })
 
       // Reset form
@@ -153,6 +163,30 @@ export function FastingControls() {
             }}
             disabled={isLoading || isStarting}
           />
+        </div>
+
+        {/* Start Date/Time */}
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="start-date">Start Date</Label>
+            <Input
+              id="start-date"
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              disabled={isLoading || isStarting}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="start-time">Start Time</Label>
+            <Input
+              id="start-time"
+              type="time"
+              value={startTime}
+              onChange={(e) => setStartTime(e.target.value)}
+              disabled={isLoading || isStarting}
+            />
+          </div>
         </div>
 
         {/* Notes */}
