@@ -17,6 +17,11 @@ export function AutoStartMonitor() {
       return
     }
 
+    if (!scheduledFasts || !Array.isArray(scheduledFasts)) {
+      // No scheduled fasts to check
+      return
+    }
+
     const now = new Date()
     const checkWindow = 5 // Minutes before/after scheduled time to auto-start
 
@@ -125,6 +130,10 @@ export function useScheduleConflicts() {
     }
 
     // Check against scheduled fasts
+    if (!scheduledFasts || !Array.isArray(scheduledFasts)) {
+      return { hasConflict: false }
+    }
+
     for (const fast of scheduledFasts) {
       if (excludeId && fast.id === excludeId) continue
 

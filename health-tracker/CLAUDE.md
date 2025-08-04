@@ -88,10 +88,14 @@ All API routes use Next.js 15 route handlers with proper error handling:
 
 ### Environment Variables
 Required for development:
-- `DATABASE_URL` / `POSTGRES_PRISMA_URL` - PostgreSQL connection
+- `POSTGRES_PRISMA_URL` - PostgreSQL pooled connection (for Prisma queries)
+- `POSTGRES_URL_NON_POOLING` - PostgreSQL direct connection (for migrations)
+- `DATABASE_URL` - Alternative PostgreSQL connection (legacy support)
 - `NEXTAUTH_URL` - Full URL (http://localhost:3000 in dev)
 - `NEXTAUTH_SECRET` - Random string for JWT signing
 - `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` - OAuth credentials
+
+**Important**: The project uses `.env.local` for local development with Neon PostgreSQL credentials. The `.env` file may contain outdated Prisma Accelerate URLs that won't work. Always check `.env.local` first.
 
 ### CSS and Theming
 - Tailwind CSS with custom properties for theming

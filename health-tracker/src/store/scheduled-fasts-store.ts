@@ -33,13 +33,14 @@ export const useScheduledFastsStore = create<ScheduledFastsStore>()(
           })
 
           if (!response.ok) {
-            throw new Error('Failed to create scheduled fast')
+            const errorData = await response.json()
+            throw new Error(errorData.error || 'Failed to create scheduled fast')
           }
 
           const scheduledFast = await response.json()
           
           set((state) => {
-            state.scheduledFasts = [scheduledFast, ...state.scheduledFasts]
+            state.scheduledFasts = [scheduledFast, ...(state.scheduledFasts || [])]
             state.isLoading = false
           })
 
@@ -74,9 +75,11 @@ export const useScheduledFastsStore = create<ScheduledFastsStore>()(
           const updatedFast = await response.json()
           
           set((state) => {
-            const index = state.scheduledFasts.findIndex(f => f.id === id)
-            if (index !== -1) {
-              state.scheduledFasts[index] = updatedFast
+            if (state.scheduledFasts && Array.isArray(state.scheduledFasts)) {
+              const index = state.scheduledFasts.findIndex(f => f.id === id)
+              if (index !== -1) {
+                state.scheduledFasts[index] = updatedFast
+              }
             }
             state.isLoading = false
           })
@@ -108,8 +111,8 @@ export const useScheduledFastsStore = create<ScheduledFastsStore>()(
           }
 
           set((state) => {
-            state.scheduledFasts = state.scheduledFasts.filter(f => f.id !== id)
-            state.upcomingFasts = state.upcomingFasts.filter(f => f.id !== id)
+            state.scheduledFasts = (state.scheduledFasts || []).filter(f => f.id !== id)
+            state.upcomingFasts = (state.upcomingFasts || []).filter(f => f.id !== id)
             state.isLoading = false
           })
         } catch (error) {
@@ -134,7 +137,7 @@ export const useScheduledFastsStore = create<ScheduledFastsStore>()(
             throw new Error('Failed to fetch scheduled fasts')
           }
 
-          const { fasts } = await response.json()
+          const fasts = await response.json()
           
           set((state) => {
             state.scheduledFasts = fasts
@@ -156,7 +159,7 @@ export const useScheduledFastsStore = create<ScheduledFastsStore>()(
             throw new Error('Failed to fetch upcoming fasts')
           }
 
-          const { fasts } = await response.json()
+          const fasts = await response.json()
           
           set((state) => {
             state.upcomingFasts = fasts

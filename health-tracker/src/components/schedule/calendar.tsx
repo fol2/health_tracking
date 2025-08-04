@@ -39,6 +39,9 @@ export function Calendar({ onDateClick, selectedDate, className }: CalendarProps
 
   // Get scheduled fasts for a specific day
   const getScheduledFastsForDay = (date: Date) => {
+    if (!scheduledFasts || !Array.isArray(scheduledFasts)) {
+      return []
+    }
     return scheduledFasts.filter(fast => {
       const fastStart = new Date(fast.scheduledStart)
       return isSameDay(fastStart, date)
@@ -47,6 +50,9 @@ export function Calendar({ onDateClick, selectedDate, className }: CalendarProps
 
   // Get completed fasts for a specific day
   const getCompletedFastsForDay = (date: Date) => {
+    if (!recentSessions || !Array.isArray(recentSessions)) {
+      return []
+    }
     return recentSessions.filter(session => {
       const sessionStart = new Date(session.startTime)
       return isSameDay(sessionStart, date) && session.status === 'completed'
@@ -55,6 +61,9 @@ export function Calendar({ onDateClick, selectedDate, className }: CalendarProps
 
   // Get active fast for a specific day
   const getActiveFastForDay = (date: Date) => {
+    if (!recentSessions || !Array.isArray(recentSessions)) {
+      return undefined
+    }
     return recentSessions.find(session => {
       const sessionStart = new Date(session.startTime)
       return isSameDay(sessionStart, date) && session.status === 'active'

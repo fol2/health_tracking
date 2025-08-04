@@ -67,6 +67,16 @@ export async function GET(request: NextRequest) {
         }
         typeCount[session.type].count++
         typeCount[session.type].totalHours += hours
+      } else if (session.status === 'active') {
+        // Include active session hours
+        const hours = differenceInHours(new Date(), session.startTime)
+        totalHours += hours
+        
+        if (!typeCount[session.type]) {
+          typeCount[session.type] = { count: 0, totalHours: 0 }
+        }
+        // Don't increment count for active sessions, just add hours
+        typeCount[session.type].totalHours += hours
       }
     })
 
@@ -144,6 +154,8 @@ export async function GET(request: NextRequest) {
         const weekHours = weekSessions.reduce((total, session) => {
           if (session.status === 'completed' && session.endTime) {
             return total + differenceInHours(session.endTime, session.startTime)
+          } else if (session.status === 'active') {
+            return total + differenceInHours(new Date(), session.startTime)
           }
           return total
         }, 0)

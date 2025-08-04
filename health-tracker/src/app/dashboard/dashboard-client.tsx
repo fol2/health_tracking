@@ -55,8 +55,8 @@ export function DashboardClient({ user, data }: DashboardClientProps) {
           </p>
         </div>
 
-        {/* Quick Actions */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        {/* Quick Actions - Hidden on mobile */}
+        <div className="hidden md:grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <Link href="/fasting">
             <ActionCard
               title="Start Fasting"

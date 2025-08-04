@@ -61,7 +61,12 @@ export function ScheduleForm({ onSuccess, initialDate }: ScheduleFormProps) {
       type: '16:8',
       startDate: initialDate || new Date(),
       startTime: '09:00',
+      customHours: 16,
       isRecurring: false,
+      recurrenceFrequency: 'daily',
+      recurrenceInterval: 1,
+      recurrenceDaysOfWeek: [],
+      recurrenceEndDate: undefined,
       reminderEnabled: true,
       reminderMinutes: 30,
       notes: '',
@@ -130,6 +135,7 @@ export function ScheduleForm({ onSuccess, initialDate }: ScheduleFormProps) {
       form.reset()
       onSuccess?.()
     } catch (error) {
+      console.error('Failed to schedule fasting session:', error)
       toast.error('Failed to schedule fasting session')
     }
   }
@@ -152,7 +158,7 @@ export function ScheduleForm({ onSuccess, initialDate }: ScheduleFormProps) {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Fasting Type</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <Select onValueChange={field.onChange} value={field.value}>
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder="Select fasting type" />
@@ -285,7 +291,7 @@ export function ScheduleForm({ onSuccess, initialDate }: ScheduleFormProps) {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Repeat Every</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Select frequency" />
@@ -396,7 +402,7 @@ export function ScheduleForm({ onSuccess, initialDate }: ScheduleFormProps) {
                     <FormLabel>Remind me</FormLabel>
                     <Select
                       onValueChange={value => field.onChange(parseInt(value))}
-                      defaultValue={field.value?.toString()}
+                      value={field.value?.toString()}
                     >
                       <FormControl>
                         <SelectTrigger>

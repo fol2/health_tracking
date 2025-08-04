@@ -78,6 +78,9 @@ export async function GET(request: NextRequest) {
       if (session.status === 'completed' && session.endTime) {
         totalFastingHours += differenceInHours(session.endTime, session.startTime)
         completedFasts++
+      } else if (session.status === 'active') {
+        // Include active session hours
+        totalFastingHours += differenceInHours(new Date(), session.startTime)
       }
     })
 

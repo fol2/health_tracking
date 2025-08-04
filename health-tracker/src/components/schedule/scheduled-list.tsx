@@ -26,7 +26,7 @@ export function ScheduledList({ onEdit, className }: ScheduledListProps) {
     fetchScheduledFasts()
   }, [fetchScheduledFasts])
 
-  const filteredFasts = scheduledFasts.filter(fast => {
+  const filteredFasts = (scheduledFasts || []).filter(fast => {
     const startDate = new Date(fast.scheduledStart)
     switch (filter) {
       case 'upcoming':
@@ -69,6 +69,7 @@ export function ScheduledList({ onEdit, className }: ScheduledListProps) {
         await deleteScheduledFast(id)
         toast.success('Scheduled fast deleted')
       } catch (error) {
+        console.error('Failed to delete scheduled fast:', error)
         toast.error('Failed to delete scheduled fast')
       }
     }
@@ -105,7 +106,7 @@ export function ScheduledList({ onEdit, className }: ScheduledListProps) {
     return `${hours} hours`
   }
 
-  if (isLoading && scheduledFasts.length === 0) {
+  if (isLoading && (!scheduledFasts || scheduledFasts.length === 0)) {
     return (
       <Card className={className}>
         <CardContent className="p-6">
@@ -170,11 +171,7 @@ export function ScheduledList({ onEdit, className }: ScheduledListProps) {
                         </div>
                         <div className="flex items-center gap-1">
                           <Clock className="h-3.5 w-3.5" />
-                          <span>{format(startDate, 'p')} - {format(new Date(fast.scheduledEnd), 'p')}</span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <Clock className="h-3.5 w-3.5" />
-                          <span>{formatDuration(fast.scheduledStart.toISOString(), fast.scheduledEnd.toISOString())}</span>
+                          <span>{format(startDate, 'p')} ({formatDuration(fast.scheduledStart, fast.scheduledEnd)})</span>
                         </div>
                       </div>
 

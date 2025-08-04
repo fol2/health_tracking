@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { Calendar as CalendarIcon, List, Plus, Settings } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { DashboardLayout } from '@/components/layouts/dashboard-layout'
 import { Calendar } from '@/components/schedule/calendar'
 import { ScheduleForm } from '@/components/schedule/schedule-form'
@@ -112,6 +112,9 @@ export default function SchedulePage() {
               <DialogTitle>
                 {editingFast ? 'Edit Scheduled Fast' : 'Schedule New Fast'}
               </DialogTitle>
+              <DialogDescription>
+                {editingFast ? 'Modify your scheduled fasting session' : 'Plan a new fasting session with custom timing and reminders'}
+              </DialogDescription>
             </DialogHeader>
             <ScheduleForm
               initialDate={selectedDate}
@@ -125,6 +128,9 @@ export default function SchedulePage() {
           <DialogContent className="max-w-2xl">
             <DialogHeader>
               <DialogTitle>Reminder Settings</DialogTitle>
+              <DialogDescription>
+                Configure when and how you want to be reminded about your scheduled fasts
+              </DialogDescription>
             </DialogHeader>
             <ReminderSettings />
           </DialogContent>
