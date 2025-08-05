@@ -21,13 +21,15 @@ import {
   Tooltip,
   ResponsiveContainer,
   ReferenceLine,
-  Cell,
-  TooltipProps
+  Cell
 } from 'recharts'
 import { format } from 'date-fns'
 
+// Type definitions
+type DayOption = 7 | 30 | 90 | 365
+
 interface BMITrendChartProps {
-  days?: 7 | 30 | 90 | 365
+  days?: DayOption
 }
 
 // BMI categories with ranges and colors
@@ -93,10 +95,15 @@ const EmptyState = ({ message, icon = false }: { message: string; icon?: boolean
   </Card>
 )
 
-const DaySelector = ({ value, onChange }: { value: number; onChange: (days: number) => void }) => (
+interface DaySelectorProps {
+  value: DayOption
+  onChange: (days: DayOption) => void
+}
+
+const DaySelector = ({ value, onChange }: DaySelectorProps) => (
   <select
     value={value}
-    onChange={(e) => onChange(Number(e.target.value))}
+    onChange={(e) => onChange(Number(e.target.value) as DayOption)}
     className="text-sm border rounded-md px-2 py-1 bg-background"
   >
     <option value={7}>Last 7 days</option>
@@ -106,10 +113,20 @@ const DaySelector = ({ value, onChange }: { value: number; onChange: (days: numb
   </select>
 )
 
-const BMITooltip = ({ active, payload }: TooltipProps<number, string>) => {
+// Custom tooltip component with proper typing for recharts v3
+interface BMITooltipProps {
+  active?: boolean
+  payload?: Array<{
+    value: number
+    payload: ChartDataPoint
+  }>
+  label?: string | number
+}
+
+const BMITooltip: React.FC<BMITooltipProps> = ({ active, payload }) => {
   if (!active || !payload?.length) return null
   
-  const data = payload[0].payload as ChartDataPoint
+  const data = payload[0].payload
   const unit = data.weight !== data.displayWeight ? WeightUnits.LBS : WeightUnits.KG
   
   return (
@@ -283,7 +300,7 @@ export function BMITrendChart({ days = 30 }: BMITrendChartProps) {
               tick={{ fill: 'currentColor' }}
               domain={chartDomain}
             />
-            <Tooltip content={BMITooltip} />
+            <Tooltip content={BMITooltip as any} />
             
             <ReferenceLine 
               y={stats!.average} 
