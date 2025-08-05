@@ -60,3 +60,4 @@ client_secret_*.json
 
 # llm
 .checkpoints/
+.env*.local
