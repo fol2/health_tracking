@@ -243,14 +243,10 @@ npx playwright codegen http://localhost:3000
 5. **API Security**: All API routes check authentication except `/api/auth/*`
 6. **Demo Mode**: Set `USE_DEMO_AUTH=true` for testing without Google OAuth
 
-## Important Flow
-
-After each code editing / writing in the todoWrite, ALWAYS follow by calling code-simplifier to review the last edit.
-
 ## Development Workflow
 
 1. Make changes to code
-2. **IMPORTANT**: After editing any file, ALWAYS use the `code-simplifier` sub-agent to review and improve the code
+2. **IMPORTANT**: After editing any file, ALWAYS use the `code-simplifier` agent to review and improve the code (as specified in root CLAUDE.md)
 3. If database schema changed: `npm run db:generate` then `npm run db:push`
 4. Test locally with `npm run dev`
 5. Run `npm run build` to check for TypeScript errors
