@@ -17,19 +17,20 @@ const MEAL_TYPE_COLORS = {
   snack: 'bg-green-500'
 } as const
 
-// Types
+// Types - matching what the API actually returns
 interface MealLog {
   id: string
-  mealType: keyof typeof MEAL_TYPE_COLORS
+  mealType: 'breakfast' | 'lunch' | 'dinner' | 'snack'
   loggedAt: string
   totalCalories?: number
   totalProtein?: number
   totalCarbs?: number
   totalFat?: number
+  totalFiber?: number
   notes?: string
-  foodItems?: Array<{
-    id: string
-    quantity: number
+  foodItems: Array<{
+    id?: string
+    quantity?: number
     foodItem: {
       name: string
     }

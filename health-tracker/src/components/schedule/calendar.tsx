@@ -9,6 +9,7 @@ import { useScheduledFastsStore } from '@/store/scheduled-fasts-store'
 import { useFastingSessionStore } from '@/store/fasting-session-store'
 import type { ScheduledFast, FastingSession } from '@/types/database'
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isSameMonth, isToday, isPast, isFuture, startOfDay, endOfDay } from 'date-fns'
+import { CalendarPieIndicator, calculateFastingHoursForDay } from './calendar-pie-indicator'
 
 interface CalendarProps {
   onDateClick?: (date: Date) => void
@@ -154,18 +155,38 @@ export function Calendar({ onDateClick, selectedDate, className }: CalendarProps
           const active = getActiveFastForDay(day)
           const hasEvents = scheduled.length > 0 || completed.length > 0 || active
 
-          // Determine if this is start/middle/end of any fast
-          const isStartDay = (fast: any, sessionType: 'scheduled' | 'session') => {
-            const startTime = sessionType === 'scheduled' ? fast.scheduledStart : fast.startTime
-            return isSameDay(new Date(startTime), day)
+          // Calculate fasting hours for each type
+          let activeFastingHours = 0
+          let completedFastingHours = 0
+          let scheduledFastingHours = 0
+
+          if (active) {
+            const sessionStart = new Date(active.startTime)
+            const sessionEnd = active.endTime ? new Date(active.endTime) : new Date()
+            activeFastingHours = calculateFastingHoursForDay(day, sessionStart, sessionEnd)
           }
 
-          const isEndDay = (fast: any, sessionType: 'scheduled' | 'session') => {
-            const endTime = sessionType === 'scheduled' 
-              ? fast.scheduledEnd 
-              : (fast.endTime || new Date())
-            return isSameDay(new Date(endTime), day)
+          if (completed.length > 0) {
+            // Sum up all completed fasting hours for this day
+            completedFastingHours = completed.reduce((total, session) => {
+              const sessionStart = new Date(session.startTime)
+              const sessionEnd = session.endTime ? new Date(session.endTime) : new Date()
+              return total + calculateFastingHoursForDay(day, sessionStart, sessionEnd)
+            }, 0)
           }
+
+          if (scheduled.length > 0) {
+            // Sum up all scheduled fasting hours for this day
+            scheduledFastingHours = scheduled.reduce((total, fast) => {
+              const fastStart = new Date(fast.scheduledStart)
+              const fastEnd = new Date(fast.scheduledEnd)
+              return total + calculateFastingHoursForDay(day, fastStart, fastEnd)
+            }, 0)
+          }
+
+          // Prioritize active > completed > scheduled for display
+          const primaryFastingHours = activeFastingHours || completedFastingHours || scheduledFastingHours
+          const primaryColor = activeFastingHours ? '#10b981' : completedFastingHours ? '#3b82f6' : '#f97316'
 
           return (
             <button
@@ -176,41 +197,19 @@ export function Calendar({ onDateClick, selectedDate, className }: CalendarProps
                 "hover:bg-muted/50 focus:outline-none focus:ring-2 focus:ring-primary",
                 !isSameMonth(day, currentMonth) && "text-muted-foreground opacity-50",
                 isToday(day) && "ring-2 ring-primary",
-                selectedDate && isSameDay(day, selectedDate) && "bg-primary text-primary-foreground",
-                hasEvents && !selectedDate && "bg-muted"
+                selectedDate && isSameDay(day, selectedDate) && "bg-primary text-primary-foreground"
               )}
             >
-              <div className="flex flex-col items-center justify-center h-full">
+              <div className="flex flex-col items-center justify-center h-full gap-1">
                 <span className="text-sm">{format(day, 'd')}</span>
                 
-                {/* Event indicators with different shapes for start/middle/end */}
-                {hasEvents && (
-                  <div className="flex gap-0.5 mt-1">
-                    {active && (
-                      <div className={cn(
-                        "w-1.5 h-1.5 bg-green-500",
-                        isStartDay(active, 'session') && "rounded-l-full",
-                        isEndDay(active, 'session') && "rounded-r-full",
-                        !isStartDay(active, 'session') && !isEndDay(active, 'session') && "rounded-none"
-                      )} />
-                    )}
-                    {completed.length > 0 && (
-                      <div className={cn(
-                        "w-1.5 h-1.5 bg-blue-500",
-                        completed.some(c => isStartDay(c, 'session')) && "rounded-l-full",
-                        completed.some(c => isEndDay(c, 'session')) && "rounded-r-full",
-                        !completed.some(c => isStartDay(c, 'session')) && !completed.some(c => isEndDay(c, 'session')) && "rounded-none"
-                      )} />
-                    )}
-                    {scheduled.length > 0 && (
-                      <div className={cn(
-                        "w-1.5 h-1.5 bg-orange-500",
-                        scheduled.some(s => isStartDay(s, 'scheduled')) && "rounded-l-full",
-                        scheduled.some(s => isEndDay(s, 'scheduled')) && "rounded-r-full",
-                        !scheduled.some(s => isStartDay(s, 'scheduled')) && !scheduled.some(s => isEndDay(s, 'scheduled')) && "rounded-none"
-                      )} />
-                    )}
-                  </div>
+                {/* Pie chart indicator */}
+                {hasEvents && primaryFastingHours > 0 && (
+                  <CalendarPieIndicator
+                    fastingHours={primaryFastingHours}
+                    color={primaryColor}
+                    size={16}
+                  />
                 )}
               </div>
             </button>
@@ -222,20 +221,20 @@ export function Calendar({ onDateClick, selectedDate, className }: CalendarProps
       <div className="mt-4 space-y-2">
         <div className="flex flex-wrap gap-4 text-xs">
           <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full bg-green-500" />
+            <CalendarPieIndicator fastingHours={12} color="#10b981" size={16} />
             <span className="text-muted-foreground">Active</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full bg-blue-500" />
+            <CalendarPieIndicator fastingHours={12} color="#3b82f6" size={16} />
             <span className="text-muted-foreground">Completed</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full bg-orange-500" />
+            <CalendarPieIndicator fastingHours={12} color="#f97316" size={16} />
             <span className="text-muted-foreground">Scheduled</span>
           </div>
         </div>
         <div className="text-xs text-muted-foreground">
-          Multi-day fasts show indicators on all covered days
+          Pie charts show fasting hours per day (fuller = more hours fasted)
         </div>
       </div>
     </Card>
