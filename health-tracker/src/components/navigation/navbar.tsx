@@ -13,13 +13,15 @@ import {
   Scale, 
   BarChart3, 
   Calendar,
-  Heart
+  Heart,
+  Utensils
 } from "lucide-react"
 import { useState } from "react"
 
 const navigation = [
   { name: "Dashboard", href: "/dashboard", icon: Home },
   { name: "Fasting", href: "/fasting", icon: Timer },
+  { name: "Meals", href: "/meals", icon: Utensils },
   { name: "Weight", href: "/weight", icon: Scale },
   { name: "Health", href: "/health", icon: Heart },
   { name: "Schedule", href: "/schedule", icon: Calendar },

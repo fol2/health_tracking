@@ -243,17 +243,22 @@ npx playwright codegen http://localhost:3000
 5. **API Security**: All API routes check authentication except `/api/auth/*`
 6. **Demo Mode**: Set `USE_DEMO_AUTH=true` for testing without Google OAuth
 
+## Important Flow
+
+After each code editing / writing in the todoWrite, ALWAYS follow by calling code-simplifier to review the last edit.
+
 ## Development Workflow
 
 1. Make changes to code
-2. If database schema changed: `npm run db:generate` then `npm run db:push`
-3. Test locally with `npm run dev`
-4. Run `npm run build` to check for TypeScript errors
-5. Run `npm run lint` to check for linting issues
-6. Run `npm run format` to format code
-7. Run `npm run test` to execute Playwright tests
-8. Commit changes (credentials are gitignored)
-9. Deploy with `vercel --prod` or push to GitHub for auto-deploy
+2. **IMPORTANT**: After editing any file, ALWAYS use the `code-simplifier` sub-agent to review and improve the code
+3. If database schema changed: `npm run db:generate` then `npm run db:push`
+4. Test locally with `npm run dev`
+5. Run `npm run build` to check for TypeScript errors
+6. Run `npm run lint` to check for linting issues
+7. Run `npm run format` to format code
+8. Run `npm run test` to execute Playwright tests
+9. Commit changes (credentials are gitignored)
+10. Deploy with `vercel --prod` or push to GitHub for auto-deploy
 
 ## Database Schema Overview
 
@@ -310,6 +315,69 @@ vercel logs --prod
 # Redeploy production
 vercel --prod --force
 ```
+
+## Step-by-Step Deployment Guide
+
+### Quick Deployment (Most Common)
+```bash
+# Deploy directly to production
+vercel --prod
+```
+
+### Deployment with Git Workflow
+```bash
+# 1. Check current git status
+git status
+
+# 2. Add modified files
+git add <file1> <file2>
+# Or add all changes
+git add .
+
+# 3. Create commit with meaningful message
+git commit -m "Your descriptive commit message"
+
+# 4. Deploy to production
+vercel --prod
+```
+
+### Example Deployment After Bug Fix
+```bash
+# 1. Fix the bug in your code
+# 2. Use code-simplifier to review changes (IMPORTANT!)
+# 3. Test the fix locally
+npm run dev
+
+# 4. Build to check for errors
+npm run build
+
+# 5. Stage and commit changes
+git add src/components/health/bmi-trend-chart.tsx
+git commit -m "Fix BMI trend chart not loading profile data
+
+Fixed issue where BMI trend chart showed insufficient profile data
+even when user had already set their height.
+
+🤖 Generated with [Claude Code](https://claude.ai/code)
+
+Co-Authored-By: Claude <noreply@anthropic.com>"
+
+# 6. Deploy to production
+vercel --prod
+```
+
+### Deployment Output
+When you run `vercel --prod`, you'll see:
+1. **Instant URL**: A preview URL (e.g., `https://health-tracker-abc123.vercel.app`)
+2. **Build Progress**: Shows compilation, type checking, and page generation
+3. **Production URL**: Final production URL after successful deployment
+
+### Verifying Deployment
+After deployment, always verify:
+1. Visit the production URL
+2. Test the specific feature you changed
+3. Check browser console for any errors
+4. Monitor Function Logs in Vercel Dashboard if needed
 
 ## Deployment Troubleshooting
 

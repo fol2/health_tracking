@@ -37,36 +37,48 @@ export function Calendar({ onDateClick, selectedDate, className }: CalendarProps
   // Create empty cells for days before month starts
   const emptyDays = Array.from({ length: firstDayOfWeek }, (_, i) => i)
 
-  // Get scheduled fasts for a specific day
+  // Check if a date falls within a fasting period
+  const isDateWithinFastPeriod = (date: Date, startDate: Date, endDate: Date) => {
+    const dayStart = startOfDay(date)
+    const dayEnd = endOfDay(date)
+    return startDate <= dayEnd && endDate >= dayStart
+  }
+
+  // Get scheduled fasts for a specific day (including multi-day fasts)
   const getScheduledFastsForDay = (date: Date) => {
-    if (!scheduledFasts || !Array.isArray(scheduledFasts)) {
-      return []
-    }
+    if (!scheduledFasts?.length) return []
+    
     return scheduledFasts.filter(fast => {
       const fastStart = new Date(fast.scheduledStart)
-      return isSameDay(fastStart, date)
+      const fastEnd = new Date(fast.scheduledEnd)
+      return isDateWithinFastPeriod(date, fastStart, fastEnd)
     })
   }
 
-  // Get completed fasts for a specific day
+  // Get completed fasts for a specific day (including multi-day fasts)
   const getCompletedFastsForDay = (date: Date) => {
-    if (!recentSessions || !Array.isArray(recentSessions)) {
-      return []
-    }
+    if (!recentSessions?.length) return []
+    
     return recentSessions.filter(session => {
+      if (session.status !== 'completed') return false
+      
       const sessionStart = new Date(session.startTime)
-      return isSameDay(sessionStart, date) && session.status === 'completed'
+      const sessionEnd = session.endTime ? new Date(session.endTime) : new Date()
+      return isDateWithinFastPeriod(date, sessionStart, sessionEnd)
     })
   }
 
-  // Get active fast for a specific day
+  // Get active fast for a specific day (including multi-day fasts)
   const getActiveFastForDay = (date: Date) => {
-    if (!recentSessions || !Array.isArray(recentSessions)) {
-      return undefined
-    }
+    if (!recentSessions?.length) return undefined
+    
     return recentSessions.find(session => {
+      if (session.status !== 'active') return false
+      
       const sessionStart = new Date(session.startTime)
-      return isSameDay(sessionStart, date) && session.status === 'active'
+      // For active sessions, use current time as end time
+      const sessionEnd = new Date()
+      return isDateWithinFastPeriod(date, sessionStart, sessionEnd)
     })
   }
 
@@ -142,6 +154,19 @@ export function Calendar({ onDateClick, selectedDate, className }: CalendarProps
           const active = getActiveFastForDay(day)
           const hasEvents = scheduled.length > 0 || completed.length > 0 || active
 
+          // Determine if this is start/middle/end of any fast
+          const isStartDay = (fast: any, sessionType: 'scheduled' | 'session') => {
+            const startTime = sessionType === 'scheduled' ? fast.scheduledStart : fast.startTime
+            return isSameDay(new Date(startTime), day)
+          }
+
+          const isEndDay = (fast: any, sessionType: 'scheduled' | 'session') => {
+            const endTime = sessionType === 'scheduled' 
+              ? fast.scheduledEnd 
+              : (fast.endTime || new Date())
+            return isSameDay(new Date(endTime), day)
+          }
+
           return (
             <button
               key={day.toISOString()}
@@ -158,17 +183,32 @@ export function Calendar({ onDateClick, selectedDate, className }: CalendarProps
               <div className="flex flex-col items-center justify-center h-full">
                 <span className="text-sm">{format(day, 'd')}</span>
                 
-                {/* Event indicators */}
+                {/* Event indicators with different shapes for start/middle/end */}
                 {hasEvents && (
                   <div className="flex gap-0.5 mt-1">
                     {active && (
-                      <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
+                      <div className={cn(
+                        "w-1.5 h-1.5 bg-green-500",
+                        isStartDay(active, 'session') && "rounded-l-full",
+                        isEndDay(active, 'session') && "rounded-r-full",
+                        !isStartDay(active, 'session') && !isEndDay(active, 'session') && "rounded-none"
+                      )} />
                     )}
                     {completed.length > 0 && (
-                      <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+                      <div className={cn(
+                        "w-1.5 h-1.5 bg-blue-500",
+                        completed.some(c => isStartDay(c, 'session')) && "rounded-l-full",
+                        completed.some(c => isEndDay(c, 'session')) && "rounded-r-full",
+                        !completed.some(c => isStartDay(c, 'session')) && !completed.some(c => isEndDay(c, 'session')) && "rounded-none"
+                      )} />
                     )}
                     {scheduled.length > 0 && (
-                      <div className="w-1.5 h-1.5 rounded-full bg-orange-500" />
+                      <div className={cn(
+                        "w-1.5 h-1.5 bg-orange-500",
+                        scheduled.some(s => isStartDay(s, 'scheduled')) && "rounded-l-full",
+                        scheduled.some(s => isEndDay(s, 'scheduled')) && "rounded-r-full",
+                        !scheduled.some(s => isStartDay(s, 'scheduled')) && !scheduled.some(s => isEndDay(s, 'scheduled')) && "rounded-none"
+                      )} />
                     )}
                   </div>
                 )}
@@ -179,18 +219,23 @@ export function Calendar({ onDateClick, selectedDate, className }: CalendarProps
       </div>
 
       {/* Legend */}
-      <div className="mt-4 flex flex-wrap gap-4 text-xs">
-        <div className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded-full bg-green-500" />
-          <span className="text-muted-foreground">Active</span>
+      <div className="mt-4 space-y-2">
+        <div className="flex flex-wrap gap-4 text-xs">
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 rounded-full bg-green-500" />
+            <span className="text-muted-foreground">Active</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 rounded-full bg-blue-500" />
+            <span className="text-muted-foreground">Completed</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 rounded-full bg-orange-500" />
+            <span className="text-muted-foreground">Scheduled</span>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded-full bg-blue-500" />
-          <span className="text-muted-foreground">Completed</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded-full bg-orange-500" />
-          <span className="text-muted-foreground">Scheduled</span>
+        <div className="text-xs text-muted-foreground">
+          Multi-day fasts show indicators on all covered days
         </div>
       </div>
     </Card>
