@@ -269,7 +269,7 @@ Key models and relationships:
 
 All models include proper indexes for performance and cascade deletion for data integrity.
 
-## Quick Deployment Reference
+## Quick Deployment Reference (Updated)
 
 ### First-time Deployment to Vercel
 ```bash
