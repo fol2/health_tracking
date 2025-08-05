@@ -56,6 +56,15 @@ const getBMICategory = (bmi: number) => {
 
 const formatBMIValue = (value: number) => value.toFixed(1)
 
+// Reference line configuration helper
+const createReferenceLine = (y: number, stroke: string, label: string | number, labelClass: string) => ({
+  y,
+  stroke,
+  strokeDasharray: "5 5",
+  opacity: 0.7,
+  label: { value: String(label), position: "left" as const, className: `text-xs ${labelClass}` }
+})
+
 interface ChartDataPoint {
   date: string
   fullDate: string
@@ -126,24 +135,18 @@ interface BMITooltipProps {
 const BMITooltip: React.FC<BMITooltipProps> = ({ active, payload }) => {
   if (!active || !payload?.length) return null
   
-  const data = payload[0].payload
-  const unit = data.weight !== data.displayWeight ? WeightUnits.LBS : WeightUnits.KG
+  const { fullDate, bmi, category, color, displayWeight, weight, notes } = payload[0].payload
+  const unit = weight !== displayWeight ? WeightUnits.LBS : WeightUnits.KG
   
   return (
-    <div className="bg-background border rounded-lg shadow-lg p-3">
-      <p className="font-semibold">{data.fullDate}</p>
-      <p className="text-sm">
-        BMI: <span className="font-medium">{data.bmi}</span>
-      </p>
-      <p className="text-sm font-medium" style={{ color: data.color }}>
-        {data.category}
-      </p>
+    <div className="bg-background border rounded-lg shadow-lg p-3 space-y-1">
+      <p className="font-semibold">{fullDate}</p>
+      <p className="text-sm">BMI: <span className="font-medium">{bmi}</span></p>
+      <p className="text-sm font-medium" style={{ color }}>{category}</p>
       <p className="text-sm text-muted-foreground">
-        Weight: {formatWeight(data.displayWeight, unit)}
+        Weight: {formatWeight(displayWeight, unit)}
       </p>
-      {data.notes && (
-        <p className="text-xs text-muted-foreground mt-1">{data.notes}</p>
-      )}
+      {notes && <p className="text-xs text-muted-foreground mt-1">{notes}</p>}
     </div>
   )
 }
@@ -164,43 +167,44 @@ const BMILegend = () => (
   </div>
 )
 
-const BMIStatistics = ({ stats }: { stats: BMIStats }) => (
-  <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-    <div>
-      <p className="text-muted-foreground">Start BMI</p>
-      <p className="font-semibold">{formatBMIValue(stats.start)}</p>
+const BMIStatistics = ({ stats }: { stats: BMIStats }) => {
+  const currentCategory = getBMICategory(stats.current)
+  const changeColor = stats.change > 0 ? "text-red-500" : stats.change < 0 ? "text-green-500" : ""
+  
+  const statItems = [
+    { label: "Start BMI", value: formatBMIValue(stats.start) },
+    { 
+      label: "Current BMI", 
+      value: formatBMIValue(stats.current),
+      suffix: <span className="text-xs ml-1" style={{ color: currentCategory.color }}>
+        ({currentCategory.name})
+      </span>
+    },
+    { 
+      label: "Change", 
+      value: `${stats.change > 0 ? "+" : ""}${formatBMIValue(stats.change)}`,
+      className: changeColor
+    },
+    { label: "Average", value: formatBMIValue(stats.average) }
+  ]
+
+  return (
+    <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+      {statItems.map(({ label, value, suffix, className }) => (
+        <div key={label}>
+          <p className="text-muted-foreground">{label}</p>
+          <p className={cn("font-semibold", className)}>
+            {value}{suffix}
+          </p>
+        </div>
+      ))}
     </div>
-    <div>
-      <p className="text-muted-foreground">Current BMI</p>
-      <p className="font-semibold">
-        {formatBMIValue(stats.current)}
-        <span 
-          className="text-xs ml-1" 
-          style={{ color: getBMICategory(stats.current).color }}
-        >
-          ({getBMICategory(stats.current).name})
-        </span>
-      </p>
-    </div>
-    <div>
-      <p className="text-muted-foreground">Change</p>
-      <p className={cn(
-        "font-semibold",
-        stats.change > 0 ? "text-red-500" : stats.change < 0 ? "text-green-500" : ""
-      )}>
-        {stats.change > 0 && "+"}{formatBMIValue(stats.change)}
-      </p>
-    </div>
-    <div>
-      <p className="text-muted-foreground">Average</p>
-      <p className="font-semibold">{formatBMIValue(stats.average)}</p>
-    </div>
-  </div>
-)
+  )
+}
 
 export function BMITrendChart({ days = 30 }: BMITrendChartProps) {
   const { weightHistory, fetchWeightHistory } = useHealthMetricsStore()
-  const { profile } = useUserProfileStore()
+  const { profile, fetchProfile } = useUserProfileStore()
   
   const [selectedDays, setSelectedDays] = useState(days)
   const [isLoading, setIsLoading] = useState(true)
@@ -210,11 +214,18 @@ export function BMITrendChart({ days = 30 }: BMITrendChartProps) {
   useEffect(() => {
     const loadData = async () => {
       setIsLoading(true)
-      await fetchWeightHistory(selectedDays === 365 ? 100 : selectedDays)
-      setIsLoading(false)
+      try {
+        // Parallel fetch for better performance
+        await Promise.all([
+          !profile && fetchProfile(),
+          fetchWeightHistory(selectedDays === 365 ? 100 : selectedDays)
+        ].filter(Boolean))
+      } finally {
+        setIsLoading(false)
+      }
     }
     loadData()
-  }, [selectedDays, fetchWeightHistory])
+  }, [selectedDays, fetchWeightHistory, fetchProfile, profile])
 
   // Transform weight history to chart data
   const chartData = useMemo(() => {
@@ -229,10 +240,11 @@ export function BMITrendChart({ days = 30 }: BMITrendChartProps) {
       .map(record => {
         const bmi = calculateBMI(record.weight, profile.height!)
         const category = getBMICategory(bmi)
+        const recordDate = new Date(record.recordedAt)
         
         return {
-          date: format(new Date(record.recordedAt), 'MMM dd'),
-          fullDate: new Date(record.recordedAt).toLocaleDateString('en-GB'),
+          date: format(recordDate, 'MMM dd'),
+          fullDate: recordDate.toLocaleDateString('en-GB'),
           bmi: parseFloat(formatBMIValue(bmi)),
           weight: record.weight,
           displayWeight: unit === WeightUnits.KG 
@@ -250,13 +262,14 @@ export function BMITrendChart({ days = 30 }: BMITrendChartProps) {
     if (chartData.length === 0) return null
     
     const bmis = chartData.map(d => d.bmi)
-    const sum = bmis.reduce((a, b) => a + b, 0)
+    const [start, ...rest] = bmis
+    const current = bmis.at(-1)!
     
     return {
-      current: bmis[bmis.length - 1],
-      start: bmis[0],
-      average: sum / bmis.length,
-      change: bmis[bmis.length - 1] - bmis[0],
+      current,
+      start,
+      average: bmis.reduce((a, b) => a + b, 0) / bmis.length,
+      change: current - start,
       min: Math.min(...bmis),
       max: Math.max(...bmis),
     }
@@ -310,18 +323,10 @@ export function BMITrendChart({ days = 30 }: BMITrendChartProps) {
             />
             
             <ReferenceLine 
-              y={CHART_CONFIG.healthyBmiLower} 
-              stroke="#10b981" 
-              strokeDasharray="5 5"
-              opacity={0.7}
-              label={{ value: String(CHART_CONFIG.healthyBmiLower), position: "left", className: "text-xs fill-green-500" }}
+              {...createReferenceLine(CHART_CONFIG.healthyBmiLower, "#10b981", CHART_CONFIG.healthyBmiLower, "fill-green-500")}
             />
             <ReferenceLine 
-              y={CHART_CONFIG.healthyBmiUpper} 
-              stroke="#10b981" 
-              strokeDasharray="5 5"
-              opacity={0.7}
-              label={{ value: String(CHART_CONFIG.healthyBmiUpper), position: "left", className: "text-xs fill-green-500" }}
+              {...createReferenceLine(CHART_CONFIG.healthyBmiUpper, "#10b981", CHART_CONFIG.healthyBmiUpper, "fill-green-500")}
             />
             
             <Bar dataKey="bmi" radius={CHART_CONFIG.barRadius}>
