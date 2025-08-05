@@ -7,6 +7,7 @@ import { z } from 'zod'
 const updateWeightSchema = z.object({
   weight: z.number().positive().max(635).optional(),
   notes: z.string().optional(),
+  recordedAt: z.string().datetime().or(z.date()).optional(),
 })
 
 interface RouteParams {
@@ -46,6 +47,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       data: {
         weight: validated.weight ?? existing.weight,
         notes: validated.notes ?? existing.notes,
+        recordedAt: validated.recordedAt ? new Date(validated.recordedAt) : existing.recordedAt,
       },
     })
 

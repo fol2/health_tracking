@@ -9,7 +9,8 @@ import { WeightHistory } from '@/components/health/weight-history'
 import { WeightProgress } from '@/components/health/weight-progress'
 import { HealthMetricsForm } from '@/components/health/health-metrics-form'
 import { RecentMetrics } from '@/components/health/recent-metrics'
-import { WeightChart } from '@/components/health/weight-chart'
+import { WeightTrendChart } from '@/components/health/weight-trend-chart'
+import { BMITrendChart } from '@/components/health/bmi-trend-chart'
 import { Scale, Activity, ChartLine, Plus } from 'lucide-react'
 
 export default function HealthPage() {
@@ -72,7 +73,8 @@ export default function HealthPage() {
 
           <TabsContent value="history" className="space-y-6">
             <div className="grid gap-6">
-              <WeightChart days={30} />
+              <WeightTrendChart />
+              <BMITrendChart />
               <WeightHistory />
               <div className="rounded-lg border bg-card p-6">
                 <h3 className="text-lg font-semibold mb-4">Health Metrics History</h3>

@@ -21,7 +21,7 @@ export const useHealthMetricsStore = create<HealthMetricsStore>()(
         error: null,
 
         // Weight management actions
-        addWeightRecord: async (weight, notes) => {
+        addWeightRecord: async (weight, notes, recordedAt) => {
           set((state) => {
             state.isLoading = true
             state.error = null
@@ -34,7 +34,7 @@ export const useHealthMetricsStore = create<HealthMetricsStore>()(
               body: JSON.stringify({
                 weight,
                 notes,
-                recordedAt: new Date(),
+                recordedAt: recordedAt || new Date(),
               }),
             })
 
@@ -58,7 +58,7 @@ export const useHealthMetricsStore = create<HealthMetricsStore>()(
           }
         },
 
-        updateWeightRecord: async (id, weight, notes) => {
+        updateWeightRecord: async (id, weight, notes, recordedAt) => {
           set((state) => {
             state.isLoading = true
             state.error = null
@@ -68,7 +68,7 @@ export const useHealthMetricsStore = create<HealthMetricsStore>()(
             const response = await fetch(`${API_BASE_URL}/weight/${id}`, {
               method: 'PATCH',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ weight, notes }),
+              body: JSON.stringify({ weight, notes, recordedAt }),
             })
 
             if (!response.ok) {
@@ -156,7 +156,7 @@ export const useHealthMetricsStore = create<HealthMetricsStore>()(
         },
 
         // General metrics actions
-        addMetric: async (type, value, unit, notes) => {
+        addMetric: async (type, value, unit, notes, recordedAt) => {
           set((state) => {
             state.isLoading = true
             state.error = null
@@ -171,7 +171,7 @@ export const useHealthMetricsStore = create<HealthMetricsStore>()(
                 value,
                 unit,
                 notes,
-                recordedAt: new Date(),
+                recordedAt: recordedAt || new Date(),
               }),
             })
 

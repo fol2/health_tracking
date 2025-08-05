@@ -24,7 +24,17 @@ export function WeightInput({ onSuccess, compact = false }: WeightInputProps) {
   
   const [weight, setWeight] = useState('')
   const [notes, setNotes] = useState('')
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 16))
+  // Get local datetime string for input element
+  const getLocalDateTimeString = () => {
+    const now = new Date()
+    const year = now.getFullYear()
+    const month = String(now.getMonth() + 1).padStart(2, '0')
+    const day = String(now.getDate()).padStart(2, '0')
+    const hours = String(now.getHours()).padStart(2, '0')
+    const minutes = String(now.getMinutes()).padStart(2, '0')
+    return `${year}-${month}-${day}T${hours}:${minutes}`
+  }
+  const [date, setDate] = useState(getLocalDateTimeString())
   const [unit, setUnit] = useState<WeightUnit>(
     profile?.unitsPreference === 'imperial' ? WeightUnits.LBS : WeightUnits.KG
   )
@@ -51,12 +61,12 @@ export function WeightInput({ onSuccess, compact = false }: WeightInputProps) {
         ? weightValue 
         : convertWeight(weightValue, unit, WeightUnits.KG)
 
-      await addWeightRecord(weightKg, notes || undefined)
+      await addWeightRecord(weightKg, notes || undefined, new Date(date))
       
       // Reset form
       setWeight('')
       setNotes('')
-      setDate(new Date().toISOString().slice(0, 16))
+      setDate(getLocalDateTimeString())
       if (compact) setIsExpanded(false)
       
       toast.success('Weight recorded successfully')
@@ -147,7 +157,7 @@ export function WeightInput({ onSuccess, compact = false }: WeightInputProps) {
               type="datetime-local"
               value={date}
               onChange={(e) => setDate(e.target.value)}
-              max={new Date().toISOString().slice(0, 16)}
+              max={getLocalDateTimeString()}
               required
             />
           </div>

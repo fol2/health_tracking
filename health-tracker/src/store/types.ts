@@ -122,13 +122,13 @@ export interface HealthMetricsState {
 
 export interface HealthMetricsActions {
   // Weight management
-  addWeightRecord: (weight: number, notes?: string) => Promise<void>
-  updateWeightRecord: (id: string, weight: number, notes?: string) => Promise<void>
+  addWeightRecord: (weight: number, notes?: string, recordedAt?: Date | string) => Promise<void>
+  updateWeightRecord: (id: string, weight: number, notes?: string, recordedAt?: Date | string) => Promise<void>
   deleteWeightRecord: (id: string) => Promise<void>
   fetchWeightHistory: (limit?: number) => Promise<void>
   
   // General metrics
-  addMetric: (type: string, value: any, unit?: string, notes?: string) => Promise<void>
+  addMetric: (type: string, value: any, unit?: string, notes?: string, recordedAt?: Date | string) => Promise<void>
   fetchMetrics: (type: string, limit?: number) => Promise<void>
   fetchAllMetrics: () => Promise<void>
 }

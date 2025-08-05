@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Trash2, Edit2, TrendingUp, TrendingDown, Minus, Filter } from 'lucide-react'
+import { Trash2, Edit2, TrendingUp, TrendingDown, Minus, Filter, Calendar } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -33,10 +33,22 @@ export function WeightHistory() {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editWeight, setEditWeight] = useState('')
   const [editNotes, setEditNotes] = useState('')
+  const [editDate, setEditDate] = useState('')
   const [dateFilter, setDateFilter] = useState<'all' | 'week' | 'month' | 'year'>('all')
   const [unit, setUnit] = useState<WeightUnit>(
     profile?.unitsPreference === 'imperial' ? WeightUnits.LBS : WeightUnits.KG
   )
+
+  // Get local datetime string for input element
+  const getLocalDateTimeString = (date: Date | string) => {
+    const d = new Date(date)
+    const year = d.getFullYear()
+    const month = String(d.getMonth() + 1).padStart(2, '0')
+    const day = String(d.getDate()).padStart(2, '0')
+    const hours = String(d.getHours()).padStart(2, '0')
+    const minutes = String(d.getMinutes()).padStart(2, '0')
+    return `${year}-${month}-${day}T${hours}:${minutes}`
+  }
 
   useEffect(() => {
     fetchWeightHistory(50)
@@ -55,6 +67,7 @@ export function WeightHistory() {
       : convertWeight(record.weight, WeightUnits.KG, unit)
     setEditWeight(displayWeight.toFixed(1))
     setEditNotes(record.notes || '')
+    setEditDate(getLocalDateTimeString(record.recordedAt))
   }
 
   const handleUpdate = async () => {
@@ -65,10 +78,11 @@ export function WeightHistory() {
         ? parseFloat(editWeight)
         : convertWeight(parseFloat(editWeight), unit, WeightUnits.KG)
 
-      await updateWeightRecord(editingId, weightKg, editNotes)
+      await updateWeightRecord(editingId, weightKg, editNotes, new Date(editDate))
       setEditingId(null)
       setEditWeight('')
       setEditNotes('')
+      setEditDate('')
       toast.success('Weight updated successfully')
     } catch (error) {
       toast.error('Failed to update weight')
@@ -186,13 +200,22 @@ export function WeightHistory() {
                       />
                     </div>
                     <div>
-                      <Label>Notes</Label>
+                      <Label>Date & Time</Label>
                       <Input
-                        value={editNotes}
-                        onChange={(e) => setEditNotes(e.target.value)}
-                        placeholder="Optional notes"
+                        type="datetime-local"
+                        value={editDate}
+                        onChange={(e) => setEditDate(e.target.value)}
+                        max={getLocalDateTimeString(new Date())}
                       />
                     </div>
+                  </div>
+                  <div>
+                    <Label>Notes</Label>
+                    <Input
+                      value={editNotes}
+                      onChange={(e) => setEditNotes(e.target.value)}
+                      placeholder="Optional notes"
+                    />
                   </div>
                   <div className="flex gap-2">
                     <Button
@@ -205,7 +228,12 @@ export function WeightHistory() {
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={() => setEditingId(null)}
+                      onClick={() => {
+                        setEditingId(null)
+                        setEditWeight('')
+                        setEditNotes('')
+                        setEditDate('')
+                      }}
                     >
                       Cancel
                     </Button>

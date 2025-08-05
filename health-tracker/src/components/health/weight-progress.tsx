@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { Target, TrendingUp, TrendingDown, Activity, Calendar } from 'lucide-react'
 import { Card } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
@@ -37,27 +37,56 @@ export function WeightProgress() {
     }
   }, [profile?.unitsPreference])
 
-  // Calculate weight changes
+  // Helper function to find record before or at a specific date
+  const findRecordBeforeDate = (targetDate: Date, allowEqual = true) => {
+    return weightHistory.find(r => {
+      const recordDate = new Date(r.recordedAt)
+      return allowEqual ? recordDate <= targetDate : recordDate < targetDate
+    })
+  }
+
+  // Helper function to get date boundaries
+  const getDateBoundaries = () => {
+    const now = new Date()
+    
+    // Day ago
+    const dayAgo = new Date(now)
+    dayAgo.setDate(dayAgo.getDate() - 1)
+    
+    // Start of current week (configurable, defaulting to Sunday)
+    const weekStart = new Date(now)
+    const daysToSubtract = now.getDay() // 0 = Sunday
+    weekStart.setDate(now.getDate() - daysToSubtract)
+    weekStart.setHours(0, 0, 0, 0)
+    
+    // Start of current month
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
+    monthStart.setHours(0, 0, 0, 0)
+    
+    return { dayAgo, weekStart, monthStart }
+  }
+
+  // Calculate weight changes with memoization
   const getWeightChanges = () => {
     if (!recentWeight || weightHistory.length < 2) {
-      return { week: null, month: null }
+      return { day: null, wtd: null, mtd: null }
     }
 
-    const now = new Date()
-    const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
-    const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
+    const { dayAgo, weekStart, monthStart } = getDateBoundaries()
+    
+    // Find comparison records
+    const dayRecord = findRecordBeforeDate(dayAgo)
+    const wtdRecord = findRecordBeforeDate(weekStart, false) || findRecordBeforeDate(weekStart)
+    const mtdRecord = findRecordBeforeDate(monthStart, false) || findRecordBeforeDate(monthStart)
 
-    // Find closest weight records to compare
-    const weekRecord = weightHistory.find(r => 
-      new Date(r.recordedAt) <= weekAgo
-    )
-    const monthRecord = weightHistory.find(r => 
-      new Date(r.recordedAt) <= monthAgo
-    )
+    // Calculate changes
+    const calculateChange = (record: typeof dayRecord) => 
+      record ? calculateWeightChange(recentWeight.weight, record.weight) : null
 
     return {
-      week: weekRecord ? calculateWeightChange(recentWeight.weight, weekRecord.weight) : null,
-      month: monthRecord ? calculateWeightChange(recentWeight.weight, monthRecord.weight) : null,
+      day: calculateChange(dayRecord),
+      wtd: calculateChange(wtdRecord),
+      mtd: calculateChange(mtdRecord),
     }
   }
 
@@ -87,15 +116,61 @@ export function WeightProgress() {
     }
   }
 
-  const changes = getWeightChanges()
-  const progress = getProgressToTarget()
-  const bmi = getBMI()
+  // Memoize expensive calculations
+  const changes = useMemo(() => getWeightChanges(), [recentWeight, weightHistory])
+  const progress = useMemo(() => getProgressToTarget(), [recentWeight, profile?.targetWeight])
+  const bmi = useMemo(() => getBMI(), [recentWeight, profile?.height])
 
-  const displayWeight = recentWeight
-    ? unit === WeightUnits.KG 
-      ? recentWeight.weight 
-      : convertWeight(recentWeight.weight, WeightUnits.KG, unit)
-    : null
+  const displayWeight = useMemo(() => 
+    recentWeight
+      ? unit === WeightUnits.KG 
+        ? recentWeight.weight 
+        : convertWeight(recentWeight.weight, WeightUnits.KG, unit)
+      : null,
+    [recentWeight, unit]
+  )
+
+  // Reusable component for rendering weight change
+  const renderWeightChange = (label: string, change: ReturnType<typeof calculateWeightChange> | null) => {
+    if (!change) {
+      return (
+        <div className="text-sm text-muted-foreground">
+          {label}: No data
+        </div>
+      )
+    }
+
+    if (change.direction === 'same') {
+      return (
+        <div className="flex items-center justify-between">
+          <span className="text-sm text-muted-foreground">{label}</span>
+          <span className="text-sm text-muted-foreground">No change</span>
+        </div>
+      )
+    }
+
+    const isGain = change.direction === 'up'
+    const Icon = isGain ? TrendingUp : TrendingDown
+    const colorClass = isGain ? 'text-red-500' : 'text-green-500'
+    const sign = isGain ? '+' : '-'
+    const weightValue = formatWeight(
+      convertWeight(change.absolute, WeightUnits.KG, unit), 
+      unit, 
+      1
+    )
+
+    return (
+      <div className="flex items-center justify-between">
+        <span className="text-sm text-muted-foreground">{label}</span>
+        <div className="flex items-center gap-1">
+          <Icon className={cn("h-4 w-4", colorClass)} />
+          <span className={cn("text-sm font-medium", colorClass)}>
+            {sign}{weightValue}
+          </span>
+        </div>
+      </div>
+    )
+  }
 
   if (!recentWeight) {
     return (
@@ -169,61 +244,9 @@ export function WeightProgress() {
           <h3 className="font-semibold">Changes</h3>
         </div>
         <div className="space-y-2">
-          {changes.week ? (
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">Week</span>
-              <div className="flex items-center gap-1">
-                {changes.week.direction === 'up' ? (
-                  <TrendingUp className="h-4 w-4 text-red-500" />
-                ) : changes.week.direction === 'down' ? (
-                  <TrendingDown className="h-4 w-4 text-green-500" />
-                ) : null}
-                <span className={cn(
-                  "text-sm font-medium",
-                  changes.week.direction === 'up' ? 'text-red-500' : 'text-green-500'
-                )}>
-                  {changes.week.direction !== 'same' && (
-                    <>
-                      {changes.week.direction === 'up' ? '+' : '-'}
-                      {formatWeight(convertWeight(changes.week.absolute, WeightUnits.KG, unit), unit, 1)}
-                    </>
-                  )}
-                </span>
-              </div>
-            </div>
-          ) : (
-            <div className="text-sm text-muted-foreground">
-              Week: No data
-            </div>
-          )}
-
-          {changes.month ? (
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">Month</span>
-              <div className="flex items-center gap-1">
-                {changes.month.direction === 'up' ? (
-                  <TrendingUp className="h-4 w-4 text-red-500" />
-                ) : changes.month.direction === 'down' ? (
-                  <TrendingDown className="h-4 w-4 text-green-500" />
-                ) : null}
-                <span className={cn(
-                  "text-sm font-medium",
-                  changes.month.direction === 'up' ? 'text-red-500' : 'text-green-500'
-                )}>
-                  {changes.month.direction !== 'same' && (
-                    <>
-                      {changes.month.direction === 'up' ? '+' : '-'}
-                      {formatWeight(convertWeight(changes.month.absolute, WeightUnits.KG, unit), unit, 1)}
-                    </>
-                  )}
-                </span>
-              </div>
-            </div>
-          ) : (
-            <div className="text-sm text-muted-foreground">
-              Month: No data
-            </div>
-          )}
+          {renderWeightChange('Day', changes.day)}
+          {renderWeightChange('WTD', changes.wtd)}
+          {renderWeightChange('MTD', changes.mtd)}
         </div>
       </Card>
     </div>
