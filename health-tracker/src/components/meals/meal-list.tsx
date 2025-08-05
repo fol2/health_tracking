@@ -1,41 +1,17 @@
 'use client'
 
-import { useEffect, useState, useCallback, useMemo } from 'react'
+import { useEffect, useState, useCallback, useMemo, forwardRef, useImperativeHandle } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Trash2, ChevronDown, ChevronUp } from 'lucide-react'
+import { Trash2, ChevronDown, ChevronUp, Edit } from 'lucide-react'
 import { useMealStore } from '@/store/meal-store'
 import { useToast } from '@/hooks/use-toast'
 import { format } from 'date-fns'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { MealEditForm } from './meal-edit-form'
+import { MealLog, MEAL_TYPE_COLORS } from '@/types/meal'
 
-// Constants
-const MEAL_TYPE_COLORS = {
-  breakfast: 'bg-yellow-500',
-  lunch: 'bg-blue-500',
-  dinner: 'bg-purple-500',
-  snack: 'bg-green-500'
-} as const
-
-// Types - matching what the API actually returns
-interface MealLog {
-  id: string
-  mealType: 'breakfast' | 'lunch' | 'dinner' | 'snack'
-  loggedAt: string
-  totalCalories?: number
-  totalProtein?: number
-  totalCarbs?: number
-  totalFat?: number
-  totalFiber?: number
-  notes?: string
-  foodItems: Array<{
-    id?: string
-    quantity?: number
-    foodItem: {
-      name: string
-    }
-  }>
-}
 
 interface NutritionSummary {
   calories: number
@@ -94,11 +70,13 @@ function MealCard({
   meal, 
   isExpanded, 
   onToggle, 
+  onEdit,
   onDelete 
 }: {
   meal: MealLog
   isExpanded: boolean
   onToggle: () => void
+  onEdit: () => void
   onDelete: () => void
 }) {
   return (
@@ -108,6 +86,7 @@ function MealCard({
           meal={meal} 
           isExpanded={isExpanded}
           onToggle={onToggle}
+          onEdit={onEdit}
           onDelete={onDelete}
         />
         {isExpanded && <MealDetails meal={meal} />}
@@ -120,11 +99,13 @@ function MealHeader({
   meal, 
   isExpanded, 
   onToggle, 
+  onEdit,
   onDelete 
 }: {
   meal: MealLog
   isExpanded: boolean
   onToggle: () => void
+  onEdit: () => void
   onDelete: () => void
 }) {
   return (
@@ -146,6 +127,9 @@ function MealHeader({
       <div className="flex items-center gap-2">
         <Button size="icon" variant="ghost" onClick={onToggle}>
           {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+        </Button>
+        <Button size="icon" variant="ghost" onClick={onEdit}>
+          <Edit className="h-4 w-4" />
         </Button>
         <Button size="icon" variant="ghost" onClick={onDelete}>
           <Trash2 className="h-4 w-4" />
@@ -228,38 +212,46 @@ function LoadingState() {
 }
 
 // Main component
-export function MealList() {
+export const MealList = forwardRef<{ fetchTodayMeals: () => void }>(function MealList(_, ref) {
   const { toast } = useToast()
-  const { todayMeals, setTodayMeals, deleteMeal } = useMealStore()
+  const { todayMeals, setTodayMeals, deleteMeal, updateMeal } = useMealStore()
   const [isLoading, setIsLoading] = useState(true)
   const [expandedMeals, setExpandedMeals] = useState<Set<string>>(new Set())
+  const [editingMeal, setEditingMeal] = useState<MealLog | null>(null)
 
-  // Fetch today's meals on mount
-  useEffect(() => {
-    const fetchTodayMeals = async () => {
-      try {
-        const { start, end } = getDateRange()
-        const response = await fetch(
-          `/api/meals?startDate=${start.toISOString()}&endDate=${end.toISOString()}`
-        )
-        
-        if (!response.ok) throw new Error('Failed to fetch meals')
-        
-        const data = await response.json()
-        setTodayMeals(data)
-      } catch {
-        toast({
-          title: 'Error',
-          description: 'Failed to fetch meals',
-          variant: 'destructive'
-        })
-      } finally {
-        setIsLoading(false)
-      }
+  // Fetch today's meals
+  const fetchTodayMeals = useCallback(async () => {
+    setIsLoading(true)
+    try {
+      const { start, end } = getDateRange()
+      const response = await fetch(
+        `/api/meals?startDate=${start.toISOString()}&endDate=${end.toISOString()}`
+      )
+      
+      if (!response.ok) throw new Error('Failed to fetch meals')
+      
+      const data = await response.json()
+      setTodayMeals(data)
+    } catch {
+      toast({
+        title: 'Error',
+        description: 'Failed to fetch meals',
+        variant: 'destructive'
+      })
+    } finally {
+      setIsLoading(false)
     }
-
-    fetchTodayMeals()
   }, [setTodayMeals, toast])
+
+  // Expose fetchTodayMeals via ref
+  useImperativeHandle(ref, () => ({
+    fetchTodayMeals
+  }), [fetchTodayMeals])
+
+  // Fetch on mount
+  useEffect(() => {
+    fetchTodayMeals()
+  }, [fetchTodayMeals])
 
   // Handlers
   const handleDelete = useCallback(async (id: string) => {
@@ -311,10 +303,29 @@ export function MealList() {
             meal={meal}
             isExpanded={expandedMeals.has(meal.id)}
             onToggle={() => toggleExpanded(meal.id)}
+            onEdit={() => setEditingMeal(meal)}
             onDelete={() => handleDelete(meal.id)}
           />
         ))}
       </div>
+
+      <Dialog open={!!editingMeal} onOpenChange={(open) => !open && setEditingMeal(null)}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit Meal</DialogTitle>
+          </DialogHeader>
+          {editingMeal && (
+            <MealEditForm 
+              meal={editingMeal}
+              onSuccess={() => {
+                setEditingMeal(null)
+                fetchTodayMeals() // Refresh the list instead of reloading
+              }}
+              onCancel={() => setEditingMeal(null)}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
-}
+})

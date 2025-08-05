@@ -3,74 +3,66 @@
 import { useMemo } from 'react'
 
 interface CalendarPieIndicatorProps {
-  fastingHours: number // hours of fasting in this day (0-24)
-  color: string // color of the pie
-  size?: number // size in pixels
+  fastingHours: number
+  color: string
+  size?: number
+}
+
+type IndicatorType = 'empty' | 'full' | 'partial'
+
+interface SvgCircleProps {
+  size: number
+  fill?: string
+  stroke?: string
+  opacity?: number
+}
+
+// Reusable circle component
+function SvgCircle({ size, fill = 'none', stroke = 'currentColor', opacity = 0.3 }: SvgCircleProps) {
+  const radius = fill === 'none' ? size / 2 - 1 : size / 2
+  return (
+    <circle
+      cx={size / 2}
+      cy={size / 2}
+      r={radius}
+      fill={fill}
+      stroke={stroke}
+      strokeWidth="1"
+      opacity={opacity}
+    />
+  )
 }
 
 export function CalendarPieIndicator({ fastingHours, color, size = 20 }: CalendarPieIndicatorProps) {
-  const svgPath = useMemo(() => {
-    // Ensure fasting hours is between 0 and 24
+  const { type, path } = useMemo(() => {
     const hours = Math.min(Math.max(fastingHours, 0), 24)
     const percentage = hours / 24
     
-    // No fasting
-    if (percentage === 0) {
-      return null
-    }
+    if (percentage === 0) return { type: 'empty' as IndicatorType, path: null }
+    if (percentage >= 1) return { type: 'full' as IndicatorType, path: null }
     
-    // Full day fasting
-    if (percentage >= 1) {
-      return `M ${size/2} ${size/2} m -${size/2} 0 a ${size/2} ${size/2} 0 1 0 ${size} 0 a ${size/2} ${size/2} 0 1 0 -${size} 0`
-    }
-    
-    // Calculate the angle (starting from top, going clockwise)
+    // Calculate partial pie path
     const angle = percentage * 2 * Math.PI
     const largeArcFlag = percentage > 0.5 ? 1 : 0
+    const endX = size / 2 + (size / 2) * Math.sin(angle)
+    const endY = size / 2 - (size / 2) * Math.cos(angle)
     
-    // Calculate end point
-    const endX = size/2 + (size/2) * Math.sin(angle)
-    const endY = size/2 - (size/2) * Math.cos(angle)
-    
-    // Create the path
-    return `M ${size/2} ${size/2} L ${size/2} 0 A ${size/2} ${size/2} 0 ${largeArcFlag} 1 ${endX} ${endY} Z`
+    return {
+      type: 'partial' as IndicatorType,
+      path: `M ${size / 2} ${size / 2} L ${size / 2} 0 A ${size / 2} ${size / 2} 0 ${largeArcFlag} 1 ${endX} ${endY} Z`
+    }
   }, [fastingHours, size])
-
-  if (!svgPath) {
-    // No fasting - show hollow circle
-    return (
-      <svg width={size} height={size} className="inline-block">
-        <circle
-          cx={size/2}
-          cy={size/2}
-          r={size/2 - 1}
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1"
-          opacity="0.3"
-        />
-      </svg>
-    )
-  }
 
   return (
     <svg width={size} height={size} className="inline-block">
-      {/* Background hollow circle */}
-      <circle
-        cx={size/2}
-        cy={size/2}
-        r={size/2 - 1}
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1"
-        opacity="0.3"
-      />
-      {/* Filled pie segment */}
-      <path
-        d={svgPath}
-        fill={color}
-        opacity="0.8"
-      />
+      {type === 'empty' && <SvgCircle size={size} />}
+      {type === 'full' && <SvgCircle size={size} fill={color} opacity={0.8} />}
+      {type === 'partial' && (
+        <>
+          <SvgCircle size={size} />
+          <path d={path!} fill={color} opacity="0.8" />
+        </>
+      )}
     </svg>
   )
 }
