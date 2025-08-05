@@ -3,6 +3,7 @@ import { getServerSession } from '@/lib/auth-helpers'
 import { mealService } from '@/lib/services/meal-service'
 import { z } from 'zod'
 
+// Validation schemas
 const createMealLogSchema = z.object({
   mealType: z.enum(['breakfast', 'lunch', 'dinner', 'snack']),
   loggedAt: z.string().datetime().optional(),
@@ -13,45 +14,58 @@ const createMealLogSchema = z.object({
   })).optional()
 })
 
+// Helper function for authentication
+async function requireAuth() {
+  const session = await getServerSession()
+  if (!session?.user?.id) {
+    return { error: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }) }
+  }
+  return { userId: session.user.id }
+}
+
+// Helper function for error responses
+function handleError(error: unknown, message: string) {
+  if (error instanceof z.ZodError) {
+    return NextResponse.json(
+      { error: 'Validation error', details: error.issues },
+      { status: 400 }
+    )
+  }
+  console.error(message, error)
+  return NextResponse.json({ error: message }, { status: 500 })
+}
+
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession()
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    const auth = await requireAuth()
+    if ('error' in auth) return auth.error
 
-    const searchParams = request.nextUrl.searchParams
+    const { searchParams } = request.nextUrl
     const startDate = searchParams.get('startDate')
     const endDate = searchParams.get('endDate')
 
     const meals = await mealService.getMealLogs(
-      session.user.id,
+      auth.userId,
       startDate ? new Date(startDate) : undefined,
       endDate ? new Date(endDate) : undefined
     )
 
     return NextResponse.json(meals)
   } catch (error) {
-    console.error('Error fetching meal logs:', error)
-    return NextResponse.json(
-      { error: 'Failed to fetch meal logs' },
-      { status: 500 }
-    )
+    return handleError(error, 'Failed to fetch meal logs')
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession()
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    const auth = await requireAuth()
+    if ('error' in auth) return auth.error
 
     const body = await request.json()
     const validatedData = createMealLogSchema.parse(body)
 
     const mealLog = await mealService.createMealLog({
-      userId: session.user.id,
+      userId: auth.userId,
       mealType: validatedData.mealType,
       loggedAt: validatedData.loggedAt ? new Date(validatedData.loggedAt) : undefined,
       notes: validatedData.notes,
@@ -60,16 +74,6 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(mealLog)
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { error: 'Validation error', details: error.issues },
-        { status: 400 }
-      )
-    }
-    console.error('Error creating meal log:', error)
-    return NextResponse.json(
-      { error: 'Failed to create meal log' },
-      { status: 500 }
-    )
+    return handleError(error, 'Failed to create meal log')
   }
 }
