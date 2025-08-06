@@ -1,6 +1,17 @@
 {
   "framework": "nextjs",
   "regions": ["lhr1"],
+  "functions": {
+    "src/app/api/meals/extract/route.ts": {
+      "maxDuration": 120
+    },
+    "src/app/api/debug/llm-test/route.ts": {
+      "maxDuration": 120
+    },
+    "src/app/api/debug/llm-validate/route.ts": {
+      "maxDuration": 120
+    }
+  },
   "headers": [
     {
       "source": "/api/(.*)",

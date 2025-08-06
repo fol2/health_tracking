@@ -150,7 +150,7 @@ export const LLM_CONFIG = {
   // Default settings
   defaults: {
     provider: 'gemini',
-    model: 'gemini-2.5-flash',
+    model: 'gemini-2.5-flash', // Flash for better speed with optimized prompts
     temperature: 0.3, // Lower for more consistent extraction
     maxTokens: 2000,
     timeout: 30000, // 30 seconds

@@ -4,262 +4,321 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Repository Structure
 
-This repository contains a health tracking application located in the `health-tracker` subdirectory. The main project is **not** at the repository root but in:
+This is a health tracking PWA application. The main project is located in the `health-tracker` subdirectory:
 
 ```
-/health-tracker/
+/health-tracker/           # Main Next.js 15 application
+├── src/                  # Source code
+│   ├── app/             # Next.js App Router pages
+│   ├── components/      # React components
+│   ├── hooks/          # Custom React hooks  
+│   ├── lib/            # Utilities and services
+│   ├── store/          # Zustand state stores
+│   └── types/          # TypeScript definitions
+├── prisma/              # Database schema and migrations
+├── tests/               # Playwright E2E tests
+└── public/              # Static assets and PWA files
 ```
 
-## Important Note
+**IMPORTANT**: Always `cd health-tracker` before running any commands.
 
-**Always navigate to the `health-tracker` directory before running any commands or making changes.** The actual project CLAUDE.md with detailed instructions is located at:
+## Development Commands
 
-```
-health-tracker/CLAUDE.md
-```
-
-## Quick Start
-
+### Essential Commands
 ```bash
-cd health-tracker
-npm install
-npm run dev
+cd health-tracker          # Navigate to project directory (ALWAYS DO THIS FIRST)
+npm run dev               # Start development server (http://localhost:3000)
+npm run build             # Build for production and type-check
+npm run lint              # Run ESLint checks
+npm run format            # Format code with Prettier
 ```
 
-For complete development instructions, build commands, architecture details, and common tasks, please refer to `health-tracker/CLAUDE.md`.
+### Database Commands
+```bash
+npm run db:generate       # Generate Prisma client after schema changes
+npm run db:push          # Push schema to development database
+npm run db:migrate       # Create and apply migrations
+npm run db:studio        # Open Prisma Studio GUI
+npx prisma migrate deploy # Apply migrations in production
+```
+
+### Testing Commands
+```bash
+npm run test             # Run all Playwright tests
+npm run test:ui          # Interactive test UI
+npm run test:debug       # Debug tests with Playwright Inspector
+npm run test:headed      # Run tests with visible browser
+npm run test tests/e2e/auth.spec.ts  # Run specific test file
+npm run test -- -g "should login"    # Run test by name pattern
+```
+
+### Deployment Commands
+```bash
+vercel --prod            # Deploy directly to production
+vercel env pull .env.production.local  # Pull production env vars
+```
+
+## Architecture Overview
+
+### Tech Stack
+- **Framework**: Next.js 15.4.5 (App Router)
+- **Database**: PostgreSQL with Prisma ORM
+- **Hosting**: Vercel (London region) + Neon Postgres
+- **Auth**: NextAuth.js v5 with Google OAuth
+- **State**: Zustand stores with persistence
+- **UI**: Tailwind CSS + shadcn/ui components
+- **PWA**: next-pwa for offline functionality
+- **Testing**: Playwright for E2E tests
+
+### Core Services Pattern
+
+All database operations go through service classes in `src/lib/services/`:
+
+- `UserService`: User profiles and preferences
+- `FastingService`: Fasting sessions and statistics  
+- `HealthService`: Weight records and health metrics
+- `ScheduleService`: Scheduled fasts and recurring patterns
+- `MealService`: Meal logging and nutrition tracking
+
+Example service usage:
+```typescript
+import { FastingService } from '@/lib/services/fasting.service'
+const session = await FastingService.startSession(userId, type, targetHours)
+```
+
+### Authentication Flow (NextAuth.js v5)
+
+1. **Configuration**: `src/lib/auth.ts` - Main NextAuth config
+2. **API Route**: `src/app/api/auth/[...nextauth]/route.ts`
+3. **Middleware**: Protects routes and handles redirects
+4. **Profile Check**: Always verify `session.user.hasProfile` before app access
+
+### State Management (Zustand)
+
+Global stores in `src/store/`:
+- `useAuthStore`: Authentication state
+- `useFastingStore`: Active fasting session
+- `useHealthStore`: Health metrics cache
+- `useScheduleStore`: Scheduled fasts
+- `useOfflineStore`: Offline queue management
+
+### API Routes Pattern
+
+All routes follow RESTful conventions with proper error handling:
+```typescript
+// GET /api/resource
+export async function GET(request: Request) {
+  const session = await auth()
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+  // Implementation
+}
+```
+
+### Next.js 15 Important Changes
+
+Dynamic route params are now Promises:
+```typescript
+// Old (Next.js 14)
+export async function GET(request, { params }) {
+  const { id } = params
+}
+
+// New (Next.js 15)
+export async function GET(request, { params }) {
+  const { id } = await params  // Must await!
+}
+```
 
 ## CRITICAL SECURITY GUIDELINES
 
 ### Never Commit Secrets (HIGHEST PRIORITY!)
 
-**Recent Incident**: Hardcoded OAuth credentials and database passwords in a script file triggered GitHub push protection, blocking deployment and potentially exposing sensitive data.
+**Before ANY code change or commit:**
 
-**Prevention Protocol**:
-1. **BEFORE ANY CODE CHANGES**: Check for hardcoded credentials
-2. **BEFORE COMMITTING**: Run security scan:
-   ```bash
-   grep -r "GOCSPX\|sk-\|pk-\|Bearer\|postgres://\|mongodb://\|mysql://\|redis://" \
-     --include="*.ts" --include="*.tsx" --include="*.js" --include="*.jsx" \
-     --include="*.sh" --include="*.env" --include="*.json" .
-   ```
-3. **USE ENVIRONMENT VARIABLES**: Never hardcode any credentials
-4. **VERIFY GITIGNORE**: Ensure all `.env` files are properly ignored
-
-### Security Checklist for Every Session
-
-- [ ] No API keys, OAuth secrets, or database passwords in code
-- [ ] All credentials stored in `.env` files
-- [ ] `.env` files are gitignored
-- [ ] Created `.env.example` files with dummy values
-- [ ] Scanned for base64 encoded secrets
-- [ ] Checked `git diff --cached` before commit
-
-## Agent Collaboration Workflow
-
-### 1. Primary Development Flow
-
-For any coding task, follow this sequence:
-
-```
-1. TodoWrite → Plan and track the task
-2. Code Implementation → Write/modify code
-3. code-simplifier → ALWAYS review after editing (MANDATORY)
-4. code-reviewer → Security and quality check
-5. debugger/debug-detector → If any issues arise
+1. **Security Scan** - Run this command:
+```bash
+grep -r "GOCSPX\|sk-\|pk-\|Bearer\|postgres://\|mongodb://\|mysql://\|redis://" \
+  --include="*.ts" --include="*.tsx" --include="*.js" --include="*.jsx" \
+  --include="*.sh" --include="*.env" --include="*.json" .
 ```
 
-### 2. Mandatory Agent Usage
+2. **Environment Variables** - ONLY store credentials in:
+   - `.env.local` (local development)
+   - `.env.production` (production testing, never commit)
+   - Vercel Dashboard (production deployment)
 
-#### After EVERY Code Edit:
-- **code-simplifier** - MUST be called to review and improve code
-- **code-reviewer** - Should be called for security checks
-
-#### Before Deployment:
-- **debug-detector** - Check for potential bugs
-- **code-architecture-guardian** - Verify architectural standards
-
-#### When Dealing with Credentials:
-- **error-detective** - Search for exposed secrets in logs
-- **code-reviewer** - Double-check for hardcoded credentials
-
-### 3. Concurrent Agent Usage
-
-Launch multiple agents in parallel for efficiency:
-
-```javascript
-// Good - Parallel execution
-await Promise.all([
-  Task({ subagent_type: 'code-simplifier', ... }),
-  Task({ subagent_type: 'code-reviewer', ... }),
-  Task({ subagent_type: 'debug-detector', ... })
-])
-
-// Avoid - Sequential execution (slower)
-await Task({ subagent_type: 'code-simplifier', ... })
-await Task({ subagent_type: 'code-reviewer', ... })
+3. **Gitignore Verification**:
+```bash
+git status --ignored | grep ".env"  # Should show .env files as ignored
 ```
 
-### 4. Agent Selection Matrix
+### Security Checklist
+- [ ] No hardcoded API keys, OAuth secrets, or passwords
+- [ ] All credentials in `.env` files
+- [ ] `.env.example` has dummy values only
+- [ ] No base64 encoded secrets
+- [ ] Run `git diff --cached` before commit
 
-| Scenario | Primary Agent | Supporting Agents |
-|----------|--------------|-------------------|
-| New Feature | ui-component-builder | code-simplifier, code-reviewer |
-| Bug Fix | debugger/debug-detector | error-detective, code-simplifier |
-| Refactoring | code-simplifier | code-architecture-guardian, code-reviewer |
-| Database Changes | database-architect | code-reviewer |
-| State Management | state-management-architect | code-simplifier |
-| Production Issues | error-detective | debugger, debug-detector |
-| Security Audit | code-reviewer | error-detective |
+## Environment Configuration
 
-### 5. Critical Collaboration Rules
+### Required Environment Variables
 
-1. **NEVER skip code-simplifier** after code edits
-2. **ALWAYS use code-reviewer** when handling authentication or sensitive data
-3. **USE context-manager** for tasks exceeding 10k tokens
-4. **INVOKE error-detective** when debugging production issues
-5. **EMPLOY concurrent agents** when tasks are independent
+```env
+# Database (Auto-set by Vercel Postgres)
+POSTGRES_PRISMA_URL=       # Pooled connection with ?pgbouncer=true
+POSTGRES_URL_NON_POOLING=  # Direct connection for migrations
 
-## Available Agents
+# NextAuth
+NEXTAUTH_URL=https://your-app.vercel.app  # Production URL
+NEXTAUTH_SECRET=           # Generate: openssl rand -base64 32
 
-Claude Code has access to specialized agents that can be invoked for specific tasks. Use these agents proactively when their expertise matches the task at hand.
+# Google OAuth
+GOOGLE_CLIENT_ID=          # From Google Cloud Console
+GOOGLE_CLIENT_SECRET=      # From Google Cloud Console
 
-### Development & Code Quality Agents
+# Optional
+USE_DEMO_AUTH=true         # Enable demo mode for testing
+```
 
-1. **general-purpose** - Handles complex, multi-step tasks autonomously. Use for researching complex questions, searching for code, and executing multi-step tasks. When searching for keywords or files and not confident about finding the right match in first few tries, use this agent.
+### Google OAuth Setup
 
-2. **code-architecture-guardian** - Reviews code architecture, ensures adherence to file size limits, folder organization standards, and identifies architectural anti-patterns. Invoke after writing new code modules, during code reviews, or when refactoring existing code.
+1. Create OAuth 2.0 Client ID in Google Cloud Console
+2. Add redirect URIs:
+   - Production: `https://your-app.vercel.app/api/auth/callback/google`
+   - Development: `http://localhost:3000/api/auth/callback/google`
+3. Enable Google+ API in your project
 
-3. **debug-detector** - Identifies, analyzes, and diagnoses bugs, errors, or unexpected behavior in code. Use after code execution problems are encountered or when proactive debugging is needed before deployment.
+## Common Issues and Solutions
 
-4. **code-simplifier** - Refactors functional code to improve readability, reduce complexity, or eliminate redundancy. Use to simplify nested conditionals, extract duplicated logic, modernize legacy code patterns, reduce cognitive complexity, or apply SOLID/DRY/YAGNI principles. **MANDATORY after every code edit.**
+### TypeScript/Build Errors
+- **Zod validation**: v4 uses `.issues` not `.errors`
+- **Prisma types**: Run `npm run db:generate` after schema changes
+- **CSS errors**: Use direct properties instead of `@apply` with custom values
 
-5. **code-reviewer** - Expert code review specialist. Proactively reviews code for quality, security, and maintainability. Use immediately after writing or modifying code. **CRITICAL for security checks.**
+### Database Issues
+- **Connection failed**: Verify all `POSTGRES_*` env vars are set
+- **Schema drift**: Run `npx prisma migrate deploy` in production
+- **Type errors**: Regenerate Prisma client with `npm run db:generate`
 
-6. **debugger** - Debugging specialist for errors, test failures, and unexpected behavior. Use proactively when encountering any issues.
+### Authentication Issues
+- **OAuth redirect mismatch**: Exact URI match required (including protocol)
+- **Profile not found**: Check `session.user.hasProfile` before app access
+- **Demo mode**: Set `USE_DEMO_AUTH=true` for testing without Google
 
-7. **error-detective** - Searches logs and codebases for error patterns, stack traces, and anomalies. Correlates errors across systems and identifies root causes. Use proactively when debugging issues, analyzing logs, or investigating production errors.
+### Deployment Issues
+- **Push blocked**: Scan for hardcoded credentials
+- **Build fails**: Run `npm run build` locally first
+- **Runtime errors**: Check Vercel Function Logs
 
-### UI/Frontend Agents
+## PWA Configuration
 
-8. **ui-component-builder** - Creates, implements, or integrates UI components in React/Next.js applications. Specializes in shadcn/ui, dark themes, responsive layouts, and reusable component libraries.
+The app is configured as a Progressive Web App with:
+- Offline functionality via service worker
+- App manifest for installation
+- Automatic caching strategies
+- Icons for all platforms
 
-9. **data-viz-agent** - Creates data visualizations, implements analytics dashboards, performs statistical calculations, or designs data export functionality. Use for charts, graphs, KPIs, and statistical analysis.
+Configuration in `next.config.ts`:
+- Service worker disabled in development
+- Auto-registration enabled
+- Skip waiting for immediate updates
 
-10. **nextjs-setup-agent** - Initializes new Next.js 14 projects with App Router, configures Tailwind CSS with dark theme support, sets up Vercel deployment settings, or configures PWA capabilities.
+## Testing Strategy
 
-### Health Tracking Specific Agents
+### Test Organization
+```
+tests/
+├── e2e/           # End-to-end user flows
+├── components/    # Component-specific tests
+└── helpers/       # Test utilities
+```
 
-11. **fasting-tracker-agent** - Implements fasting tracking functionality, including timer logic, session management, history tracking, and control features (start/stop/pause).
+### Running Specific Tests
+```bash
+# Test authentication flow
+npm run test tests/e2e/auth.spec.ts
 
-12. **health-metrics-tracker** - Implements health tracking features, including weight monitoring, health indicators systems, form creation for health data input, or data validation for health-related metrics.
+# Test in headed mode (see browser)
+npm run test:headed
 
-13. **scheduler-calendar-agent** - Builds calendar functionality, implements scheduling features, handles recurring events, or integrates reminder systems. Use for calendar UI, drag-and-drop scheduling, event recurrence patterns, and notifications.
+# Test mobile viewports
+npm run test:mobile
 
-### Database & State Management Agents
+# Test against production
+npm run test:prod
+```
 
-14. **database-architect** - Designs database schemas, sets up Vercel Postgres or Supabase databases, creates database migrations, or defines data models and their relationships.
+## Performance Optimizations
 
-15. **state-management-architect** - Implements state management solutions in React applications, including global state stores (Zustand, Context API, Redux), local storage persistence, offline functionality, or data flow patterns.
+1. **Database Queries**: Use Prisma's `select` to fetch only needed fields
+2. **Image Optimization**: Use Next.js Image component
+3. **Code Splitting**: Dynamic imports for heavy components
+4. **Caching**: Zustand persistence for offline support
+5. **API Responses**: Return minimal data, paginate lists
 
-### Specialized Agents
+## Deployment Workflow
 
-16. **fact-checker-researcher** - Verifies accuracy of claims, statements, or information by conducting thorough research and cross-referencing multiple sources. Use before publishing content or when evaluating credibility of information.
+### Quick Deploy
+```bash
+cd health-tracker
+vercel --prod     # Deploy directly to production
+```
 
-17. **commercial-insurance-expert** - Provides expert analysis on commercial insurance matters including policy evaluation, risk assessment, premium calculations, claims analysis, and regulatory compliance (UK commercial lines).
+### Full Deployment Process
+```bash
+# 1. Test locally
+npm run build
+npm run test
 
-### System & DevOps Agents
+# 2. Security check
+grep -r "GOCSPX\|sk-\|pk-" --include="*.ts" --include="*.js" .
 
-18. **command-expert** - Creates CLI commands for the claude-code-templates components system. Specializes in command design, argument parsing, task automation, and CLI best practices.
+# 3. Deploy
+vercel --prod
 
-19. **mcp-expert** - Creates Model Context Protocol (MCP) integrations for the cli-tool components system. Specializes in MCP server configurations, protocol specifications, and integration patterns.
+# 4. Verify
+# Visit production URL and test critical paths
+```
 
-20. **dx-optimizer** - Developer Experience specialist. Improves tooling, setup, and workflows. Use proactively when setting up new projects, after team feedback, or when development friction is noticed.
+## Code Style Guidelines
 
-21. **context-manager** - Manages context across multiple agents and long-running tasks. Use when coordinating complex multi-agent workflows or when context needs to be preserved across multiple sessions. **MUST BE USED for projects exceeding 10k tokens.**
+1. **TypeScript**: Strict mode enabled, prefer type inference
+2. **Components**: Functional components with hooks
+3. **Async/Await**: Preferred over promises
+4. **Error Handling**: Always handle errors in API routes
+5. **Imports**: Use `@/` alias for src directory
+6. **State Updates**: Use Immer for complex state mutations
+7. **Forms**: React Hook Form with Zod validation
 
-### Usage Guidelines
+## Key Dependencies Versions
 
-- Agents should be invoked proactively when their description matches the task
-- Multiple agents can be launched concurrently for parallel tasks
-- Each agent invocation is stateless - provide detailed task descriptions
-- Agent outputs should generally be trusted
-- Clearly specify whether the agent should write code or just research
+- Next.js: 15.4.5
+- React: 19.1.0
+- Prisma: 6.13.0
+- NextAuth: 5.0.0-beta.29
+- Zustand: 5.0.7
+- Playwright: 1.54.2
 
-## Error Prevention Patterns
+## Quick Debugging Tips
 
-### Common Mistakes to Avoid
+1. **Check auth session**: Add `console.log(session)` in components
+2. **Database queries**: Use Prisma Studio: `npm run db:studio`
+3. **API errors**: Check Network tab and Vercel Function Logs
+4. **State issues**: Install Zustand devtools
+5. **Build errors**: Clear `.next` folder and rebuild
 
-1. **Hardcoding Credentials**
-   ```javascript
-   // BAD - Never do this
-   const API_KEY = "sk-abc123xyz"
-   
-   // GOOD - Use environment variables
-   const API_KEY = process.env.API_KEY
-   ```
+## Emergency Recovery
 
-2. **Skipping Agent Reviews**
-   ```
-   // BAD - Direct deployment after coding
-   Code → Deploy
-   
-   // GOOD - Always review with agents
-   Code → code-simplifier → code-reviewer → Deploy
-   ```
+### If credentials exposed:
+1. Rotate ALL exposed credentials immediately
+2. `git commit --amend` to fix commit
+3. `git push --force-with-lease`
+4. Check logs for unauthorized access
 
-3. **Sequential Agent Calls**
-   ```javascript
-   // INEFFICIENT - Sequential
-   await agent1()
-   await agent2()
-   await agent3()
-   
-   // EFFICIENT - Parallel
-   await Promise.all([agent1(), agent2(), agent3()])
-   ```
-
-### Best Practices
-
-1. **Environment Management**
-   - Keep `.env.example` updated with all required variables
-   - Never commit `.env` files
-   - Use different env files for different environments
-
-2. **Security First**
-   - Scan for secrets before every commit
-   - Use code-reviewer for authentication code
-   - Rotate credentials if ever exposed
-
-3. **Agent Collaboration**
-   - Use TodoWrite to plan complex tasks
-   - Always use code-simplifier after edits
-   - Launch independent agents concurrently
-
-## Emergency Procedures
-
-### If Credentials Are Exposed
-
-1. **Immediately rotate all exposed credentials**
-2. **Use `git commit --amend` to fix the commit**
-3. **Force push with `git push --force-with-lease`**
-4. **Notify team members if in shared repository**
-5. **Check logs for any unauthorized access**
-
-### If Production Is Down
-
-1. **Use error-detective to analyze logs**
-2. **Check Vercel deployment status**
-3. **Verify environment variables are set**
-4. **Run database migrations if needed**
-5. **Rollback to previous deployment if critical**
-
-## Conclusion
-
-This guide ensures secure, efficient development with proper agent collaboration. The key principles:
-
-1. **Security is paramount** - Never expose credentials
-2. **Agent collaboration is mandatory** - Always use code-simplifier
-3. **Parallel execution is preferred** - Launch agents concurrently
-4. **Prevention is better than cure** - Check before committing
-
-Remember: The recent security incident with hardcoded credentials could have been prevented by following these guidelines. Always prioritize security and use the agent collaboration workflow.
+### If production is down:
+1. Check Vercel deployment status
+2. Verify environment variables
+3. Run database migrations if needed
+4. Rollback to previous deployment if critical

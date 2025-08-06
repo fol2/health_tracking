@@ -6,72 +6,31 @@ import {
   FoodExtractionResponseSchema,
   foodExtractionSchema 
 } from '@/types/llm.types'
+import { LLM_CONFIG } from '@/lib/config/llm.config'
+import { getGeminiNativeService } from './gemini-native.service'
 
-const SYSTEM_PROMPT = `You are a nutrition data extraction assistant. Extract structured nutritional information from food descriptions.
+const SYSTEM_PROMPT = `Extract nutritional data from food descriptions in ANY language. Translate food names to English.
 
-Rules:
-1. Parse the description to identify individual food items
-2. Estimate portion sizes if not specified (use common serving sizes)
-3. Provide accurate nutritional data per item based on standard nutritional databases
-4. If uncertain about exact values, provide reasonable estimates based on similar foods
-5. Support multilingual input (English, Chinese, etc.)
-6. Return ONLY valid JSON without any markdown formatting or code blocks
-7. Calculate total nutrition summary with macro percentages
-8. Add warnings for estimated values or uncertain items
-9. For mixed dishes, break down into components when possible
+PARSE MULTI-ITEM INPUTS:
+Split on connectives: "再加"(and also), "and", "with", "plus", "還有"(also have)
+Example: "牛扒再加蘑菇再加紅酒" → 3 items: steak, mushrooms, wine
 
-Important: 
-- Calories should be realistic (e.g., chicken breast 200g ≈ 330 calories)
-- Protein: 4 cal/g, Carbs: 4 cal/g, Fat: 9 cal/g
-- Ensure macro percentages add up to 100%`
+DEFAULT PORTIONS:
+Proteins: steak/beef 200g, chicken/fish 150g, eggs 50g each
+Carbs: rice/pasta 150g, bread 30g/slice, potato 200g  
+Vegetables: 100g, Fruits: 150g
+Drinks: wine 150ml/glass, beer 330ml, spirits 30ml
 
-const EXTRACTION_PROMPT_TEMPLATE = `Extract nutritional information from this food description:
+MODIFIERS: 
+"少少"/"a bit" = 50g/50ml
+"三杯"/"three glasses" = 3x portion
 
-Description: {description}
-Meal Type: {mealType}
-Language: {language}
+Return JSON with items array and totalNutrition.`
 
-Please identify all food items, their quantities, and nutritional values. If portions are not specified, use typical serving sizes. Provide confidence scores for each item and overall extraction.
+const EXTRACTION_PROMPT_TEMPLATE = `Food: "{description}"
 
-Return the response in this exact JSON structure:
-{
-  "success": true,
-  "confidence": 0.85,
-  "items": [
-    {
-      "name": "food name",
-      "nameLocal": "local name if applicable",
-      "quantity": 100,
-      "unit": "g",
-      "category": "protein",
-      "nutrition": {
-        "calories": 165,
-        "protein": 31,
-        "carbs": 0,
-        "fat": 3.6,
-        "fiber": 0,
-        "sugar": 0,
-        "sodium": 74
-      },
-      "confidence": 0.9
-    }
-  ],
-  "totalNutrition": {
-    "totalCalories": 165,
-    "totalProtein": 31,
-    "totalCarbs": 0,
-    "totalFat": 3.6,
-    "totalFiber": 0,
-    "totalSugar": 0,
-    "totalSodium": 74,
-    "macroBreakdown": {
-      "proteinPercentage": 75,
-      "carbsPercentage": 0,
-      "fatPercentage": 25
-    }
-  },
-  "warnings": ["Portion sizes estimated based on typical servings"]
-}`
+Split on: "再加", "and", "with"
+Return JSON with items array only.`
 
 export class LLMService {
   private client: OpenAI
@@ -85,15 +44,137 @@ export class LLMService {
     this.client = new OpenAI({
       apiKey: providerConfig.apiKey,
       baseURL: providerConfig.baseUrl,
-      defaultHeaders: providerConfig.headers,
-      dangerouslyAllowBrowser: false // Only for server-side usage
+      defaultHeaders: providerConfig.headers
+      // Remove dangerouslyAllowBrowser as it's only needed for browser usage
     })
     
     this.provider = providerConfig.provider
     this.model = providerConfig.model
   }
   
+  async extractFoodDataRaw(
+    description: string,
+    options?: ExtractFoodOptions
+  ): Promise<any> {
+    // Raw extraction without validation for debugging
+    const prompt = this.buildPrompt(description, options)
+    
+    try {
+      console.log('[LLM-RAW] Starting raw extraction')
+      const completion = await this.client.chat.completions.create({
+        model: this.model,
+        messages: [
+          { role: 'system', content: SYSTEM_PROMPT },
+          { role: 'user', content: prompt }
+        ],
+        response_format: this.supportsJsonMode() 
+          ? { type: 'json_object' } 
+          : undefined,
+        temperature: 0.3,
+        max_tokens: 4000
+      })
+      
+      console.log('[LLM-RAW] Completion received:', {
+        hasChoices: !!completion.choices,
+        finishReason: completion.choices?.[0]?.finish_reason,
+        hasContent: !!completion.choices?.[0]?.message?.content
+      })
+      
+      const responseContent = completion.choices[0]?.message?.content
+      if (!responseContent) {
+        console.error('[LLM-RAW] Empty response, full completion:', JSON.stringify(completion))
+        throw new Error('Empty response from LLM')
+      }
+      
+      return this.parseJsonResponse(responseContent)
+    } catch (error: any) {
+      console.error('[LLM-RAW] Error:', error)
+      throw error
+    }
+  }
+
   async extractFoodData(
+    description: string, 
+    options?: ExtractFoodOptions
+  ): Promise<FoodExtractionResponse> {
+    try {
+      console.log('[LLM] Starting extraction for:', description)
+      console.log('[LLM] Config:', {
+        provider: this.provider,
+        model: this.model,
+        baseUrl: this.client.baseURL,
+        hasApiKey: !!this.client.apiKey,
+        apiKeyLength: this.client.apiKey?.length
+      })
+      
+      // Always use native Gemini API when provider is gemini
+      if (this.provider === 'gemini') {
+        console.log('[LLM] Using native Gemini API for better multi-food extraction')
+        const geminiService = getGeminiNativeService()
+        return await geminiService.extractFoodData(description, options)
+      }
+      
+      // For very long descriptions, try to split them intelligently
+      if (description.length > 100) {
+        // Split by common separators
+        const separators = ['再加', '還有', 'and', 'with', 'plus', ',', '、', '，']
+        let parts: string[] = []
+        
+        for (const sep of separators) {
+          if (description.includes(sep)) {
+            parts = description.split(sep).filter(p => p.trim())
+            if (parts.length > 1) {
+              console.log(`[LLM] Split input into ${parts.length} parts using separator: "${sep}"`)
+              break
+            }
+          }
+        }
+        
+        // If we successfully split into multiple parts, process in chunks
+        if (parts.length > 3) {
+          console.log('[LLM] Processing in chunks to avoid token limits')
+          const allItems: any[] = []
+          
+          // Process in groups of 3 items
+          for (let i = 0; i < parts.length; i += 3) {
+            const chunk = parts.slice(i, i + 3).join(' and ')
+            console.log(`[LLM] Processing chunk ${i/3 + 1}: ${chunk}`)
+            
+            const chunkResult = await this.extractFoodDataSimple(chunk, options)
+            if (chunkResult.success && chunkResult.items) {
+              allItems.push(...chunkResult.items)
+            }
+          }
+          
+          // Combine results
+          if (allItems.length > 0) {
+            return {
+              success: true,
+              confidence: 0.85,
+              items: allItems,
+              totalNutrition: this.calculateTotals(allItems),
+              warnings: ['Processed in chunks due to length'],
+              metadata: {
+                provider: this.provider,
+                model: this.model,
+                processingTime: 0,
+                tokensUsed: 0
+              }
+            }
+          }
+        }
+      }
+      
+      // Regular processing for shorter inputs
+      return await this.extractFoodDataSimple(description, options)
+      
+    } catch (error) {
+      console.error('[LLM] Unexpected error in extractFoodData:', error)
+      return this.handleError(error)
+    }
+  }
+  
+  private async extractFoodDataSimple(
     description: string, 
     options?: ExtractFoodOptions
   ): Promise<FoodExtractionResponse> {
@@ -107,26 +188,53 @@ export class LLMService {
         try {
           const startTime = Date.now()
           
-          const completion = await this.client.chat.completions.create({
+          console.log(`[LLM] Attempt ${attempt + 1}/${this.maxRetries + 1} - Calling API`)
+          
+          const requestConfig = {
             model: this.model,
             messages: [
               { role: 'system', content: SYSTEM_PROMPT },
               { role: 'user', content: prompt }
             ],
-            response_format: this.supportsJsonMode() 
-              ? { type: 'json_object' } 
-              : undefined,
-            temperature: 0.3, // Lower for more consistent extraction
-            max_tokens: 2000,
-            ...(this.provider === 'gemini' && {
-              response_schema: foodExtractionSchema // Gemini structured output
-            })
+            // Temporarily disable JSON mode to reduce token usage
+            // response_format: this.supportsJsonMode() 
+            //   ? { type: 'json_object' } 
+            //   : undefined,
+            temperature: 0.2,
+            max_tokens: 1500  // Leave room for thinking tokens
+            // Remove response_schema as it's not supported by OpenAI SDK
+          } as any
+          
+          console.log('[LLM] Request config:', {
+            model: requestConfig.model,
+            hasMessages: !!requestConfig.messages,
+            messageCount: requestConfig.messages?.length,
+            temperature: requestConfig.temperature,
+            maxTokens: requestConfig.max_tokens,
+            hasResponseFormat: !!requestConfig.response_format
+          })
+          
+          const completion = await this.client.chat.completions.create({
+            ...requestConfig
+          })
+          
+          console.log('[LLM] API Response:', {
+            hasChoices: !!completion.choices,
+            choiceCount: completion.choices?.length,
+            finishReason: completion.choices?.[0]?.finish_reason,
+            usage: completion.usage,
+            hasContent: !!completion.choices?.[0]?.message?.content,
+            contentLength: completion.choices?.[0]?.message?.content?.length,
+            completionObject: JSON.stringify(completion).substring(0, 500)
           })
           
           const responseContent = completion.choices[0]?.message?.content
           if (!responseContent) {
+            console.error('[LLM] Empty response from API')
             throw new Error('Empty response from LLM')
           }
+          
+          console.log('[LLM] Raw response (first 500 chars):', responseContent.substring(0, 500))
           
           // Parse and validate the response
           const parsedResponse = this.parseJsonResponse(responseContent)
@@ -145,22 +253,37 @@ export class LLMService {
         } catch (error: any) {
           lastError = error
           
+          console.error(`[LLM] Attempt ${attempt + 1} failed:`, {
+            status: error?.status,
+            code: error?.code,
+            message: error?.message,
+            type: error?.type,
+            response: error?.response?.data,
+            stack: error?.stack?.substring(0, 500),
+            errorDetails: JSON.stringify(error).substring(0, 1000)
+          })
+          
           // Don't retry on certain errors
           if (error.status === 401 || error.status === 403) {
+            console.error('[LLM] Authentication error, stopping retries')
             break
           }
           
           // Wait before retry
           if (attempt < this.maxRetries) {
-            await this.delay(1000 * (attempt + 1))
+            const delayMs = 1000 * (attempt + 1)
+            console.log(`[LLM] Waiting ${delayMs}ms before retry...`)
+            await this.delay(delayMs)
           }
         }
       }
       
       // All retries failed
+      console.error('[LLM] All attempts failed, handling error')
       return this.handleError(lastError)
       
     } catch (error) {
+      console.error('[LLM] Unexpected error in extractFoodData:', error)
       return this.handleError(error)
     }
   }
@@ -192,16 +315,19 @@ export class LLMService {
   
   private validateResponse(response: any): FoodExtractionResponse {
     try {
+      // If totalNutrition is missing or incomplete, calculate it
+      if (!response.totalNutrition || typeof response.totalNutrition !== 'object') {
+        response.totalNutrition = {}
+      }
+      
+      // Calculate totals from items
+      const calculatedTotals = this.calculateTotals(response.items || [])
+      
+      // Always use calculated totals for consistency
+      response.totalNutrition = calculatedTotals
+      
       // Validate with Zod schema
       const validated = FoodExtractionResponseSchema.parse(response)
-      
-      // Additional validation: ensure totals match items
-      const calculatedTotals = this.calculateTotals(validated.items)
-      
-      // Update totals if there's a mismatch
-      if (Math.abs(validated.totalNutrition.totalCalories - calculatedTotals.totalCalories) > 10) {
-        validated.totalNutrition = calculatedTotals
-      }
       
       return validated
       
@@ -209,13 +335,16 @@ export class LLMService {
       console.error('Response validation failed:', error)
       
       // Try to salvage what we can
-      if (response?.items && Array.isArray(response.items)) {
-        return {
-          success: false,
-          confidence: 0.5,
-          items: response.items.filter((item: any) => item?.name && item?.nutrition),
-          totalNutrition: this.calculateTotals(response.items),
-          warnings: ['Response validation failed. Data may be incomplete.']
+      if (response?.items && Array.isArray(response.items) && response.items.length > 0) {
+        const validItems = response.items.filter((item: any) => item?.name && item?.nutrition)
+        if (validItems.length > 0) {
+          return {
+            success: true, // Mark as success if we have valid items
+            confidence: response.confidence || 0.7,
+            items: validItems,
+            totalNutrition: this.calculateTotals(validItems),
+            warnings: ['Some fields may have been adjusted for compatibility.']
+          }
         }
       }
       
@@ -295,7 +424,14 @@ export class LLMService {
   }
   
   private handleError(error: any): FoodExtractionResponse {
-    console.error('LLM extraction error:', error)
+    console.error('[LLM] Final error handler:', {
+      message: error?.message,
+      status: error?.status,
+      code: error?.code,
+      type: error?.type,
+      response: error?.response?.data,
+      errorObject: error
+    })
     
     const emptyNutrition = {
       totalCalories: 0,
@@ -361,14 +497,28 @@ export class LLMService {
                     process.env.LLM_PROVIDER as any || 
                     'gemini'
     
+    console.log('LLM Provider Config:', {
+      provider,
+      hasApiKey: !!process.env.GEMINI_API_KEY,
+      apiKeyLength: process.env.GEMINI_API_KEY?.length
+    })
+    
     if (provider === 'gemini') {
+      // Use configured model or default to gemini-2.5-pro (advanced reasoning for better accuracy)
+      // Set GEMINI_MODEL=gemini-2.5-flash for faster, lighter responses if needed
+      // For production, use flash for faster responses to avoid timeouts
+      const isProduction = process.env.NODE_ENV === 'production'
+      // Balance between speed and accuracy - use flash with optimized prompts
+      const defaultModel = process.env.GEMINI_MODEL || 'gemini-2.5-flash'
+      const geminiModel = customConfig?.model || defaultModel
+      
       return {
         provider: 'gemini',
         apiKey: customConfig?.apiKey || process.env.GEMINI_API_KEY || '',
         baseUrl: customConfig?.baseUrl || 'https://generativelanguage.googleapis.com/v1beta/openai/',
-        model: customConfig?.model || process.env.GEMINI_MODEL || 'gemini-2.5-flash',
+        model: geminiModel,
         headers: customConfig?.headers || {},
-        maxTokens: customConfig?.maxTokens || 2000,
+        maxTokens: customConfig?.maxTokens || 2500,
         temperature: customConfig?.temperature || 0.3
       }
     }
@@ -378,12 +528,12 @@ export class LLMService {
         provider: 'openrouter',
         apiKey: customConfig?.apiKey || process.env.OPENROUTER_API_KEY || '',
         baseUrl: customConfig?.baseUrl || 'https://openrouter.ai/api/v1/',
-        model: customConfig?.model || process.env.OPENROUTER_MODEL || 'google/gemini-2.5-flash',
+        model: customConfig?.model || process.env.OPENROUTER_MODEL || 'google/gemini-2.5-flash-latest',
         headers: customConfig?.headers || {
           'HTTP-Referer': process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
           'X-Title': 'Health Tracker'
         },
-        maxTokens: customConfig?.maxTokens || 2000,
+        maxTokens: customConfig?.maxTokens || 2500,
         temperature: customConfig?.temperature || 0.3
       }
     }

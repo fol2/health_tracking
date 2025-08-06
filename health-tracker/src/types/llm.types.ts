@@ -10,20 +10,21 @@ export interface FoodExtractionResponse {
     processingTime: number // milliseconds
     tokensUsed?: number
     cached?: boolean
+    thoughtsTokenCount?: number
   }
 }
 
 export interface FoodItem {
   name: string
-  nameLocal?: string // For multilingual support (e.g., Chinese name)
+  nameLocal?: string | null // For multilingual support (e.g., Chinese name)
   quantity: number
   unit: FoodUnit
   category: FoodCategory
   nutrition: NutritionData
   confidence: number // 0-1 scale for this specific item
   source?: 'ai' | 'database' | 'manual'
-  brandName?: string // If applicable
-  barcode?: string // For future barcode scanning
+  brandName?: string | null // If applicable
+  barcode?: string | null // For future barcode scanning
 }
 
 export interface NutritionData {
@@ -224,15 +225,15 @@ export const NutritionDataSchema = z.object({
 
 export const FoodItemSchema = z.object({
   name: z.string().min(1),
-  nameLocal: z.string().optional(),
+  nameLocal: z.string().nullable().optional(),
   quantity: z.number().positive(),
   unit: FoodUnitSchema,
   category: FoodCategorySchema,
   nutrition: NutritionDataSchema,
   confidence: z.number().min(0).max(1),
   source: z.enum(['ai', 'database', 'manual']).optional(),
-  brandName: z.string().optional(),
-  barcode: z.string().optional()
+  brandName: z.string().nullable().optional(),
+  barcode: z.string().nullable().optional()
 })
 
 export const MacroBreakdownSchema = z.object({
@@ -246,6 +247,9 @@ export const NutritionSummarySchema = NutritionDataSchema.extend({
   totalProtein: z.number().min(0),
   totalCarbs: z.number().min(0),
   totalFat: z.number().min(0),
+  totalFiber: z.number().min(0).optional(),
+  totalSugar: z.number().min(0).optional(),
+  totalSodium: z.number().min(0).optional(),
   macroBreakdown: MacroBreakdownSchema
 })
 
@@ -259,7 +263,9 @@ export const FoodExtractionResponseSchema = z.object({
     provider: z.string(),
     model: z.string(),
     processingTime: z.number(),
-    tokensUsed: z.number().optional()
+    tokensUsed: z.number().optional(),
+    cached: z.boolean().optional(),
+    thoughtsTokenCount: z.number().optional()
   }).optional()
 })
 

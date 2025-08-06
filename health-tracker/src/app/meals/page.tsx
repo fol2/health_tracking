@@ -111,17 +111,19 @@ export default function MealsPage() {
           </Tabs>
 
           <Dialog open={showAddMeal} onOpenChange={setShowAddMeal}>
-            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto overflow-x-hidden">
               <DialogHeader>
                 <DialogTitle>Log a New Meal</DialogTitle>
               </DialogHeader>
-              <MealLogForm 
-                onSuccess={() => {
-                  setShowAddMeal(false)
-                  mealListRef.current?.fetchTodayMeals()
-                }}
-                onCancel={() => setShowAddMeal(false)}
-              />
+              <div className="w-full overflow-x-hidden">
+                <MealLogForm 
+                  onSuccess={() => {
+                    setShowAddMeal(false)
+                    mealListRef.current?.fetchTodayMeals()
+                  }}
+                  onCancel={() => setShowAddMeal(false)}
+                />
+              </div>
             </DialogContent>
           </Dialog>
         </div>

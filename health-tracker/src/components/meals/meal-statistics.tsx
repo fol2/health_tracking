@@ -101,7 +101,7 @@ export function MealStatistics() {
     }
 
     fetchStatistics()
-  }, [period, currentDate, toast])
+  }, [period, currentDate]) // Remove toast from dependencies
 
   const handlePrevious = () => {
     if (period === 'week') {

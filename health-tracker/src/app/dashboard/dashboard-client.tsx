@@ -9,6 +9,8 @@ import { Button } from "@/components/ui/button"
 import { BMIRange } from "@/components/ui/bmi-range"
 import { RecentActivities } from "@/components/dashboard/recent-activities"
 import { FastingCountdown } from "@/components/fasting/fasting-countdown"
+import { MealSummary } from "@/components/dashboard/meal-summary"
+import { WeightGoalCard } from "@/components/dashboard/weight-goal-card"
 import { 
   Timer, 
   Scale, 
@@ -16,7 +18,8 @@ import {
   TrendingDown, 
   Calendar,
   Clock,
-  Activity
+  Activity,
+  Utensils
 } from "lucide-react"
 
 function getBMICategory(bmi: number): string {
@@ -75,6 +78,17 @@ export function DashboardClient({ user, data }: DashboardClientProps) {
               icon={Scale}
               iconColor="text-blue-600"
               actionLabel="Log Weight"
+              disabled={false}
+            />
+          </Link>
+          
+          <Link href="/meals">
+            <ActionCard
+              title="Log Meal"
+              description="Track your food intake"
+              icon={Utensils}
+              iconColor="text-orange-600"
+              actionLabel="Log Meal"
               disabled={false}
             />
           </Link>
@@ -161,54 +175,66 @@ export function DashboardClient({ user, data }: DashboardClientProps) {
           />
         </div>
 
-        {/* Overview Cards Row */}
+        {/* Meal Summary and Health Goals Section */}
         <div className="grid gap-6 lg:grid-cols-3">
-          <DataCard
-            title="Today's Activity"
-            description="Your health metrics for today"
-            icon={Activity}
-            action={
-              <Link href="/analytics">
-                <Button variant="ghost" size="sm">
-                  View All
-                </Button>
-              </Link>
-            }
-          >
-            <div className="space-y-4">
-              <div className="flex items-center justify-between py-2">
-                <span className="text-sm font-medium">Fasting Status</span>
-                <span className={`text-sm ${data.currentFast ? 'text-green-600 font-medium' : 'text-muted-foreground'}`}>
-                  {data.currentFast ? `Active (${data.currentFast.type})` : 'Not started'}
-                </span>
+          {/* Meal Summary */}
+          <div>
+            <MealSummary />
+          </div>
+          
+          {/* Weight Goal */}
+          <div>
+            <WeightGoalCard />
+          </div>
+          
+          {/* Today's Activity Overview */}
+          <div className="space-y-6">
+            <DataCard
+              title="Today's Activity"
+              description="Your health metrics for today"
+              icon={Activity}
+              action={
+                <Link href="/analytics">
+                  <Button variant="ghost" size="sm">
+                    View All
+                  </Button>
+                </Link>
+              }
+            >
+              <div className="space-y-4">
+                <div className="flex items-center justify-between py-2">
+                  <span className="text-sm font-medium">Fasting Status</span>
+                  <span className={`text-sm ${data.currentFast ? 'text-green-600 font-medium' : 'text-muted-foreground'}`}>
+                    {data.currentFast ? `Active (${data.currentFast.type})` : 'Not started'}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between py-2">
+                  <span className="text-sm font-medium">Weight Logged</span>
+                  <span className={`text-sm ${data.lastWeight ? 'text-green-600 font-medium' : 'text-muted-foreground'}`}>
+                    {data.lastWeight ? `${data.lastWeight} kg` : 'Not yet'}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between py-2">
+                  <span className="text-sm font-medium">BMI Status</span>
+                  <span className={`text-sm ${data.bmi ? 'font-medium' : 'text-muted-foreground'}`}>
+                    {data.bmi ? `${data.bmi.toFixed(1)} - ${getBMICategory(data.bmi)}` : 'No data'}
+                  </span>
+                </div>
               </div>
-              <div className="flex items-center justify-between py-2">
-                <span className="text-sm font-medium">Weight Logged</span>
-                <span className={`text-sm ${data.lastWeight ? 'text-green-600 font-medium' : 'text-muted-foreground'}`}>
-                  {data.lastWeight ? `${data.lastWeight} kg` : 'Not yet'}
-                </span>
-              </div>
-              <div className="flex items-center justify-between py-2">
-                <span className="text-sm font-medium">BMI Status</span>
-                <span className={`text-sm ${data.bmi ? 'font-medium' : 'text-muted-foreground'}`}>
-                  {data.bmi ? `${data.bmi.toFixed(1)} - ${getBMICategory(data.bmi)}` : 'No data'}
-                </span>
-              </div>
-            </div>
-          </DataCard>
+            </DataCard>
 
-          <DataCard
-            title="Upcoming Schedule"
-            description="Your planned fasting sessions"
-            icon={Calendar}
-            action={
-              <Link href="/schedule">
-                <Button variant="ghost" size="sm">
-                  Manage
-                </Button>
-              </Link>
-            }
-          >
+            <DataCard
+              title="Upcoming Schedule"
+              description="Your planned fasting sessions"
+              icon={Calendar}
+              action={
+                <Link href="/schedule">
+                  <Button variant="ghost" size="sm">
+                    Manage
+                  </Button>
+                </Link>
+              }
+            >
             {data.upcomingFast ? (
               <div className="space-y-2">
                 <p className="text-sm font-medium">{data.upcomingFast.type} Fast</p>
@@ -273,7 +299,8 @@ export function DashboardClient({ user, data }: DashboardClientProps) {
                 </div>
               </div>
             )}
-          </DataCard>
+            </DataCard>
+          </div>
         </div>
       </div>
     </DashboardLayout>
