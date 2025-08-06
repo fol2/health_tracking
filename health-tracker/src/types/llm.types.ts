@@ -9,6 +9,7 @@ export interface FoodExtractionResponse {
     model: string
     processingTime: number // milliseconds
     tokensUsed?: number
+    cached?: boolean
   }
 }
 
