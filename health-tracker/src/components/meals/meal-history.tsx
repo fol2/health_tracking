@@ -67,11 +67,14 @@ export function MealHistory() {
       setLocalMeals(data)
       setMeals(data)
     } catch (error) {
+      console.error('Error fetching meals:', error)
       toast({
         title: 'Error',
         description: 'Failed to load meal history',
         variant: 'destructive'
       })
+      // Set empty array on error to prevent infinite loading
+      setLocalMeals([])
     } finally {
       setIsLoading(false)
     }
@@ -96,18 +99,21 @@ export function MealHistory() {
         setLocalMeals(data)
         setMeals(data)
       } catch (error) {
+        console.error('Error on initial fetch:', error)
         toast({
           title: 'Error',
           description: 'Failed to load meal history',
           variant: 'destructive'
         })
+        // Set empty array on error to prevent infinite loading
+        setLocalMeals([])
       } finally {
         setIsLoading(false)
       }
     }
     
     initialFetch()
-  }, [setMeals, toast])
+  }, []) // Empty dependency array - only run on mount
 
   useEffect(() => {
     let filtered = [...meals]
@@ -150,7 +156,7 @@ export function MealHistory() {
     setFilteredMeals(filtered)
   }, [meals, filters])
 
-  const handleDeleteMeal = async (id: string) => {
+  const handleDeleteMeal = useCallback(async (id: string) => {
     try {
       const response = await fetch(`/api/meals/${id}`, { method: 'DELETE' })
       if (!response.ok) throw new Error('Failed to delete meal')
@@ -162,15 +168,16 @@ export function MealHistory() {
         description: 'Meal deleted successfully'
       })
     } catch (error) {
+      console.error('Error deleting meal:', error)
       toast({
         title: 'Error',
         description: 'Failed to delete meal',
         variant: 'destructive'
       })
     }
-  }
+  }, [deleteMeal, toast])
 
-  const toggleExpanded = (id: string) => {
+  const toggleExpanded = useCallback((id: string) => {
     setExpandedMeals(prev => {
       const next = new Set(prev)
       if (next.has(id)) {
@@ -180,7 +187,7 @@ export function MealHistory() {
       }
       return next
     })
-  }
+  }, [])
 
   const quickDateFilters = [
     { label: 'Today', value: () => ({ from: new Date(), to: new Date() }) },
@@ -324,7 +331,7 @@ export function MealHistory() {
                           selected={filters.dateRange.from}
                           onSelect={(date) => setFilters(prev => ({ 
                             ...prev, 
-                            dateRange: { ...prev.dateRange, from: date }
+                            dateRange: { ...prev.dateRange, from: date || undefined }
                           }))}
                         />
                       </PopoverContent>
@@ -343,7 +350,7 @@ export function MealHistory() {
                           selected={filters.dateRange.to}
                           onSelect={(date) => setFilters(prev => ({ 
                             ...prev, 
-                            dateRange: { ...prev.dateRange, to: date }
+                            dateRange: { ...prev.dateRange, to: date || undefined }
                           }))}
                         />
                       </PopoverContent>
