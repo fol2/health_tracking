@@ -25,7 +25,7 @@ interface FoodItem {
   fiber?: number
   sugar?: number
   sodium?: number
-  isPublic: boolean
+  isPublic?: boolean
   userId?: string
 }
 
@@ -201,7 +201,7 @@ export function FoodDatabase() {
       fiber: food.fiber || 0,
       sugar: food.sugar || 0,
       sodium: food.sodium || 0,
-      isPublic: food.isPublic
+      isPublic: food.isPublic || false
     })
     setShowAddDialog(true)
   }

@@ -473,7 +473,7 @@ function TemplateCard({
             <Button size="sm" variant="outline" onClick={onViewDetails}>
               View
             </Button>
-            <Button size="icon" size="sm" variant="ghost" onClick={onDelete}>
+            <Button size="sm" variant="ghost" onClick={onDelete}>
               <Trash2 className="h-3 w-3" />
             </Button>
           </div>

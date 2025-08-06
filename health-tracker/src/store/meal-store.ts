@@ -5,6 +5,7 @@ export interface FoodItem {
   id: string
   name: string
   brand?: string
+  barcode?: string
   servingSize: number
   servingUnit: string
   calories: number
@@ -14,6 +15,8 @@ export interface FoodItem {
   fiber?: number
   sugar?: number
   sodium?: number
+  isPublic?: boolean
+  userId?: string
 }
 
 export interface MealLogItem {

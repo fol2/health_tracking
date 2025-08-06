@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/db'
-import type { UserProfile } from '@prisma/client'
+import type { UserProfile, Prisma } from '@prisma/client'
 
 export class UserService {
   /**
@@ -28,11 +28,11 @@ export class UserService {
   ): Promise<UserProfile> {
     return prisma.userProfile.upsert({
       where: { userId },
-      update: data,
+      update: data as Prisma.UserProfileUpdateInput,
       create: {
-        userId,
+        user: { connect: { id: userId } },
         ...data,
-      },
+      } as Prisma.UserProfileCreateInput,
     })
   }
 
