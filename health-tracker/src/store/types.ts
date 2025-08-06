@@ -100,6 +100,7 @@ export interface FastingSessionActions {
   startSession: (data: { type: string; targetHours: number; notes?: string; startTime?: Date }) => Promise<void>
   endSession: () => Promise<void>
   cancelSession: () => Promise<void>
+  updateStartTime: (newStartTime: Date) => Promise<void>
   fetchActiveSession: () => Promise<void>
   fetchRecentSessions: (limit?: number) => Promise<void>
   fetchStats: () => Promise<void>

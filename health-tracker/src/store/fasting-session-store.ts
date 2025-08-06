@@ -15,6 +15,28 @@ interface FastingSessionStore extends FastingSessionState, FastingSessionActions
 
 let timerInterval: NodeJS.Timeout | null = null
 
+// Helper function to calculate timer state from session data
+const calculateTimerState = (
+  startTime: Date,
+  targetHours: number,
+  isPaused = false
+): TimerState => {
+  const now = new Date()
+  const targetEndTime = new Date(startTime.getTime() + targetHours * 60 * 60 * 1000)
+  const elapsedMs = now.getTime() - startTime.getTime()
+  const elapsedSeconds = Math.floor(elapsedMs / 1000)
+  const remainingSeconds = Math.max(0, Math.floor((targetEndTime.getTime() - now.getTime()) / 1000))
+  
+  return {
+    startTime,
+    targetEndTime,
+    elapsedSeconds,
+    remainingSeconds,
+    isRunning: !isPaused && remainingSeconds > 0,
+    isPaused,
+  }
+}
+
 export const useFastingSessionStore = create<FastingSessionStore>()(
   devtools(
     persist(
@@ -49,21 +71,11 @@ export const useFastingSessionStore = create<FastingSessionStore>()(
             }
 
             const session = await response.json()
-            
-            // Initialize timer state
             const startTime = new Date(session.startTime)
-            const targetEndTime = new Date(startTime.getTime() + session.targetHours * 60 * 60 * 1000)
             
             set((state) => {
               state.activeSession = session
-              state.timerState = {
-                startTime,
-                targetEndTime,
-                elapsedSeconds: 0,
-                remainingSeconds: session.targetHours * 60 * 60,
-                isRunning: true,
-                isPaused: false,
-              }
+              state.timerState = calculateTimerState(startTime, session.targetHours)
               state.isLoading = false
             })
 
@@ -155,6 +167,44 @@ export const useFastingSessionStore = create<FastingSessionStore>()(
           }
         },
 
+        updateStartTime: async (newStartTime: Date) => {
+          const activeSession = get().activeSession
+          if (!activeSession) return
+
+          set((state) => {
+            state.isLoading = true
+            state.error = null
+          })
+
+          try {
+            const response = await fetch(`${API_BASE_URL}/sessions/${activeSession.id}`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                startTime: newStartTime.toISOString(),
+              }),
+            })
+
+            if (!response.ok) {
+              throw new Error('Failed to update start time')
+            }
+
+            const updatedSession = await response.json()
+            
+            set((state) => {
+              state.activeSession = updatedSession
+              state.timerState = calculateTimerState(newStartTime, activeSession.targetHours)
+              state.isLoading = false
+            })
+          } catch (error) {
+            set((state) => {
+              state.error = error instanceof Error ? error.message : 'Failed to update start time'
+              state.isLoading = false
+            })
+            throw error
+          }
+        },
+
         fetchActiveSession: async () => {
           set((state) => {
             state.isLoading = true
@@ -168,24 +218,11 @@ export const useFastingSessionStore = create<FastingSessionStore>()(
               const session = await response.json()
               
               if (session) {
-                // Restore timer state
                 const startTime = new Date(session.startTime)
-                const now = new Date()
-                const elapsedMs = now.getTime() - startTime.getTime()
-                const elapsedSeconds = Math.floor(elapsedMs / 1000)
-                const targetEndTime = new Date(startTime.getTime() + session.targetHours * 60 * 60 * 1000)
-                const remainingSeconds = Math.max(0, Math.floor((targetEndTime.getTime() - now.getTime()) / 1000))
                 
                 set((state) => {
                   state.activeSession = session
-                  state.timerState = {
-                    startTime,
-                    targetEndTime,
-                    elapsedSeconds,
-                    remainingSeconds,
-                    isRunning: true,
-                    isPaused: false,
-                  }
+                  state.timerState = calculateTimerState(startTime, session.targetHours)
                 })
 
                 // Resume timer

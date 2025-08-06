@@ -48,6 +48,32 @@ export class FastingService {
   }
 
   /**
+   * Update session start time
+   * Guards against invalid states and future dates
+   */
+  static async updateSessionStartTime(
+    sessionId: string,
+    userId: string,
+    startTime: Date
+  ) {
+    // Validate start time is not in the future
+    if (startTime > new Date()) {
+      throw new Error('Start time cannot be in the future')
+    }
+    
+    return prisma.fastingSession.update({
+      where: {
+        id: sessionId,
+        userId,
+        status: 'active',
+      },
+      data: {
+        startTime,
+      },
+    })
+  }
+
+  /**
    * End a fasting session
    */
   static async endSession(sessionId: string, userId: string) {

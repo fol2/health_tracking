@@ -5,7 +5,7 @@ import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { useFastingSessionStore } from '@/store'
 import { useRealtimeTimer } from '@/hooks'
-import { Play, Pause, StopCircle, Clock, Target } from 'lucide-react'
+import { Play, Pause, StopCircle, Clock, Target, Edit } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -14,6 +14,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { EditStartTimeDialog } from './edit-start-time-dialog'
 
 export function FastingTimer() {
   const { 
@@ -35,6 +36,7 @@ export function FastingTimer() {
   } = useRealtimeTimer()
 
   const [showEndDialog, setShowEndDialog] = useState(false)
+  const [showEditDialog, setShowEditDialog] = useState(false)
   const [isEnding, setIsEnding] = useState(false)
 
   const handleEndFast = async () => {
@@ -128,6 +130,16 @@ export function FastingTimer() {
             <div className="text-lg font-medium">
               {Math.round(progress * 100)}% Complete
             </div>
+            {/* Edit Start Time Button */}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowEditDialog(true)}
+              className="mt-2"
+            >
+              <Edit className="mr-2 h-3 w-3" />
+              Edit Start Time
+            </Button>
           </div>
 
           {/* Control Buttons */}
@@ -206,6 +218,13 @@ export function FastingTimer() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Edit Start Time Dialog */}
+      <EditStartTimeDialog
+        open={showEditDialog}
+        onOpenChange={setShowEditDialog}
+        currentStartTime={new Date(activeSession.startTime)}
+      />
     </>
   )
 }
