@@ -75,11 +75,39 @@ export function MealHistory() {
     } finally {
       setIsLoading(false)
     }
-  }, [filters.dateRange, setMeals, toast])
+  }, [filters.dateRange.from, filters.dateRange.to, setMeals, toast])
 
   useEffect(() => {
-    fetchMealHistory()
-  }, [fetchMealHistory])
+    // Only fetch on mount, not when filters change
+    // User must click "Apply Filters" button to fetch with new filters
+    const initialFetch = async () => {
+      setIsLoading(true)
+      try {
+        const params = new URLSearchParams()
+        const from = subDays(new Date(), 30)
+        const to = new Date()
+        params.append('startDate', from.toISOString())
+        params.append('endDate', to.toISOString())
+
+        const response = await fetch(`/api/meals?${params}`)
+        if (!response.ok) throw new Error('Failed to fetch meal history')
+        
+        const data = await response.json()
+        setLocalMeals(data)
+        setMeals(data)
+      } catch (error) {
+        toast({
+          title: 'Error',
+          description: 'Failed to load meal history',
+          variant: 'destructive'
+        })
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    
+    initialFetch()
+  }, [setMeals, toast])
 
   useEffect(() => {
     let filtered = [...meals]

@@ -248,10 +248,34 @@ export const MealList = forwardRef<{ fetchTodayMeals: () => void }>(function Mea
     fetchTodayMeals
   }), [fetchTodayMeals])
 
-  // Fetch on mount
+  // Fetch on mount only
   useEffect(() => {
-    fetchTodayMeals()
-  }, [fetchTodayMeals])
+    const loadInitialData = async () => {
+      setIsLoading(true)
+      try {
+        const { start, end } = getDateRange()
+        const response = await fetch(
+          `/api/meals?startDate=${start.toISOString()}&endDate=${end.toISOString()}`
+        )
+        
+        if (!response.ok) throw new Error('Failed to fetch meals')
+        
+        const data = await response.json()
+        setTodayMeals(data)
+      } catch {
+        toast({
+          title: 'Error',
+          description: 'Failed to fetch meals',
+          variant: 'destructive'
+        })
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    
+    loadInitialData()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // Handlers
   const handleDelete = useCallback(async (id: string) => {

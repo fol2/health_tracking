@@ -77,31 +77,31 @@ export function MealStatistics() {
   const [isLoading, setIsLoading] = useState(false)
   const [data, setData] = useState<StatisticsData | null>(null)
 
-  const fetchStatistics = async () => {
-    setIsLoading(true)
-    try {
-      const response = await fetch(
-        `/api/meals/statistics?period=${period}&date=${currentDate.toISOString()}`
-      )
-      
-      if (!response.ok) throw new Error('Failed to fetch statistics')
-      
-      const statsData = await response.json()
-      setData(statsData)
-    } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Failed to load meal statistics',
-        variant: 'destructive'
-      })
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
   useEffect(() => {
+    const fetchStatistics = async () => {
+      setIsLoading(true)
+      try {
+        const response = await fetch(
+          `/api/meals/statistics?period=${period}&date=${currentDate.toISOString()}`
+        )
+        
+        if (!response.ok) throw new Error('Failed to fetch statistics')
+        
+        const statsData = await response.json()
+        setData(statsData)
+      } catch (error) {
+        toast({
+          title: 'Error',
+          description: 'Failed to load meal statistics',
+          variant: 'destructive'
+        })
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
     fetchStatistics()
-  }, [period, currentDate])
+  }, [period, currentDate, toast])
 
   const handlePrevious = () => {
     if (period === 'week') {
