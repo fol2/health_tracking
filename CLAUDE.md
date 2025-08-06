@@ -69,6 +69,7 @@ vercel env pull .env.production.local  # Pull production env vars
 - **UI**: Tailwind CSS + shadcn/ui components
 - **PWA**: next-pwa for offline functionality
 - **Testing**: Playwright for E2E tests
+- **AI/LLM**: Google Gemini API for meal extraction from natural language
 
 ### Core Services Pattern
 
@@ -79,6 +80,8 @@ All database operations go through service classes in `src/lib/services/`:
 - `HealthService`: Weight records and health metrics
 - `ScheduleService`: Scheduled fasts and recurring patterns
 - `MealService`: Meal logging and nutrition tracking
+- `LLMService`: Multi-provider LLM service (supports Gemini, OpenRouter, OpenAI)
+- `GeminiNativeService`: Direct Google Gemini API integration for food extraction
 
 Example service usage:
 ```typescript
@@ -88,19 +91,23 @@ const session = await FastingService.startSession(userId, type, targetHours)
 
 ### Authentication Flow (NextAuth.js v5)
 
-1. **Configuration**: `src/lib/auth.ts` - Main NextAuth config
-2. **API Route**: `src/app/api/auth/[...nextauth]/route.ts`
-3. **Middleware**: Protects routes and handles redirects
-4. **Profile Check**: Always verify `session.user.hasProfile` before app access
+1. **Configuration**: `src/lib/auth.ts` - Main NextAuth config with demo mode support
+2. **Shared Config**: `src/lib/auth-shared.ts` - Common auth configuration
+3. **API Route**: `src/app/api/auth/[...nextauth]/route.ts`
+4. **Middleware**: Protects routes and handles redirects
+5. **Profile Check**: Always verify `session.user.hasProfile` before app access
+6. **Demo Mode**: Set `USE_DEMO_AUTH=true` for testing without Google OAuth
 
 ### State Management (Zustand)
 
 Global stores in `src/store/`:
-- `useAuthStore`: Authentication state
-- `useFastingStore`: Active fasting session
-- `useHealthStore`: Health metrics cache
-- `useScheduleStore`: Scheduled fasts
-- `useOfflineStore`: Offline queue management
+- `userProfileStore`: User profile and preferences
+- `fastingSessionStore`: Active fasting session management
+- `healthMetricsStore`: Health metrics and weight tracking
+- `scheduledFastsStore`: Scheduled and recurring fasts
+- `offlineStore`: Offline queue and sync management
+- `uiStore`: UI state and preferences
+- `mealStore`: Meal and food item management
 
 ### API Routes Pattern
 
@@ -180,6 +187,11 @@ GOOGLE_CLIENT_SECRET=      # From Google Cloud Console
 
 # Optional
 USE_DEMO_AUTH=true         # Enable demo mode for testing
+
+# LLM/AI Configuration
+LLM_PROVIDER=gemini        # Options: gemini, openrouter, openai
+GEMINI_API_KEY=           # For Google Gemini API
+GEMINI_MODEL=gemini-2.5-flash  # Gemini model to use
 ```
 
 ### Google OAuth Setup
@@ -282,6 +294,11 @@ vercel --prod
 # Visit production URL and test critical paths
 ```
 
+### Vercel Configuration
+- **Region**: London (`lhr1`) - configured in `vercel.json`
+- **Function Timeouts**: Extended to 120s for LLM endpoints
+- **Security Headers**: CORS, XSS protection, frame options configured
+
 ## Code Style Guidelines
 
 1. **TypeScript**: Strict mode enabled, prefer type inference
@@ -300,6 +317,7 @@ vercel --prod
 - NextAuth: 5.0.0-beta.29
 - Zustand: 5.0.7
 - Playwright: 1.54.2
+- Gemini API: 2.5-flash model
 
 ## Quick Debugging Tips
 
