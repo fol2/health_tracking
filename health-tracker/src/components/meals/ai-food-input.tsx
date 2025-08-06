@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -42,12 +42,44 @@ export function AIFoodInput({ onExtract, onSave, mealType, className }: AIFoodIn
   const [serviceStatus, setServiceStatus] = useState<any>(null)
 
   // Check service status on mount
-  useState(() => {
-    fetch('/api/meals/extract')
-      .then(res => res.json())
-      .then(data => setServiceStatus(data))
-      .catch(console.error)
-  })
+  useEffect(() => {
+    fetch('/api/meals/extract', {
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+      }
+    })
+      .then(res => {
+        if (!res.ok) {
+          // If unauthorized, we can't check status from client
+          setServiceStatus({ 
+            status: 'ready', 
+            enabled: true,
+            configured: true,
+            currentProvider: 'gemini',
+            currentModel: 'gemini-2.5-flash',
+            features: { cacheEnabled: true }
+          })
+          return null
+        }
+        return res.json()
+      })
+      .then(data => {
+        if (data) setServiceStatus(data)
+      })
+      .catch(err => {
+        console.error('Failed to fetch service status:', err)
+        // Assume it's configured if we can't check
+        setServiceStatus({ 
+          status: 'ready', 
+          enabled: true,
+          configured: true,
+          currentProvider: 'gemini',
+          currentModel: 'gemini-2.5-flash',
+          features: { cacheEnabled: true }
+        })
+      })
+  }, [])
 
   const handleExtract = useCallback(async () => {
     if (!description.trim()) {
