@@ -61,6 +61,7 @@ model User {
   reminders        Reminder[]
   mealLogs         MealLog[]
   foodItems        FoodItem[]
+  mealTemplates    MealTemplate[]
 }
 
 model VerificationToken {
@@ -80,6 +81,7 @@ model UserProfile {
   timezone        String   @default("UTC")
   unitsPreference String   @default("metric") // "metric" or "imperial"
   dateOfBirth     DateTime?
+  nutritionGoals  Json?    // JSON object for nutrition goals
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
@@ -224,6 +226,7 @@ model FoodItem {
 
   user      User?          @relation(fields: [userId], references: [id], onDelete: Cascade)
   mealItems MealFoodItem[]
+  templateItems MealTemplateFoodItem[]
 
   @@unique([userId, name, brand])
   @@index([userId])
@@ -243,5 +246,36 @@ model MealFoodItem {
 
   @@unique([mealLogId, foodItemId])
   @@index([mealLogId])
+  @@index([foodItemId])
+}
+
+model MealTemplate {
+  id         String               @id @default(cuid())
+  userId     String
+  name       String
+  mealType   String               // breakfast, lunch, dinner, snack
+  isFavorite Boolean              @default(false)
+  createdAt  DateTime             @default(now())
+  updatedAt  DateTime             @updatedAt
+
+  user       User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  foodItems  MealTemplateFoodItem[]
+
+  @@unique([userId, name])
+  @@index([userId])
+}
+
+model MealTemplateFoodItem {
+  id             String       @id @default(cuid())
+  templateId     String
+  foodItemId     String
+  quantity       Float        // multiplier of serving size
+  createdAt      DateTime     @default(now())
+
+  template       MealTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  foodItem       FoodItem     @relation(fields: [foodItemId], references: [id], onDelete: Cascade)
+
+  @@unique([templateId, foodItemId])
+  @@index([templateId])
   @@index([foodItemId])
 }

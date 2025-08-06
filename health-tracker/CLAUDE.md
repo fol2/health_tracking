@@ -6,7 +6,60 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 A comprehensive health tracking Progressive Web App (PWA) built with Next.js 15, featuring fasting tracking, weight monitoring, health metrics, and scheduling capabilities. The app uses PostgreSQL with Prisma ORM, NextAuth.js v5 for authentication, and is deployed on Vercel with a Neon database.
 
-## Common Development Commands
+## CRITICAL SECURITY LESSONS LEARNED
+
+### Never Commit Secrets to Git (MOST IMPORTANT!)
+
+**What happened**: Real OAuth credentials and database passwords were accidentally committed in a shell script, triggering GitHub's push protection and blocking the deployment.
+
+**How to avoid this**:
+1. **NEVER hardcode credentials** in any file that will be committed
+2. **ALWAYS use environment variables** for sensitive data
+3. **Create `.env` files for local development** and ensure they're in `.gitignore`
+4. **Use `.env.example` files** to document required variables without exposing values
+5. **For scripts that need credentials**, have them read from environment files:
+   ```bash
+   # GOOD - reads from .env file
+   source .env.production
+   echo $API_KEY
+   
+   # BAD - hardcoded credential
+   API_KEY="sk-abc123xyz"
+   ```
+
+6. **Before committing any file**, scan for patterns that look like:
+   - API keys (strings starting with `sk-`, `pk-`, etc.)
+   - OAuth secrets (long random strings)
+   - Database URLs (containing passwords)
+   - JWT secrets
+   - Any base64 encoded strings that might be credentials
+
+7. **If credentials are accidentally committed**:
+   - Immediately rotate/change all exposed credentials
+   - Use `git commit --amend` to fix the last commit
+   - Use `git push --force-with-lease` to update remote
+   - Never assume "no one will notice" - GitHub scans all public repos
+
+### Environment Variables Best Practices
+
+1. **Structure your env files properly**:
+   ```
+   .env.local          # Local development (gitignored)
+   .env.production     # Production values for local testing (gitignored)
+   .env.example        # Template with dummy values (committed)
+   ```
+
+2. **Always verify gitignore**:
+   ```bash
+   git status --ignored | grep ".env"
+   ```
+
+3. **For Vercel deployments**, manage env vars through:
+   - Vercel Dashboard (recommended)
+   - Vercel CLI with env files as source
+   - Never commit production env vars
+
+### Common Development Commands
 
 ### Development
 ```bash
@@ -118,34 +171,15 @@ All API routes use Next.js 15 route handlers with proper error handling:
 
 #### Development (.env.local)
 ```env
-# Neon PostgreSQL
-POSTGRES_PRISMA_URL="postgres://neondb_owner:npg_rq4gbwp8KjZc@ep-patient-tooth-abxi0b34-pooler.eu-west-2.aws.neon.tech/neondb?sslmode=require"
-POSTGRES_URL_NON_POOLING="postgres://neondb_owner:npg_rq4gbwp8KjZc@ep-patient-tooth-abxi0b34.eu-west-2.aws.neon.tech/neondb?sslmode=require"
-
-# NextAuth
-NEXTAUTH_URL="http://localhost:3000"
-NEXTAUTH_SECRET="fwyhLVNGn69m+XRjWk/AlSricgttBZC42yEgpo6x/V4="
-
-# Google OAuth
-GOOGLE_CLIENT_ID="[Your Google OAuth Client ID].apps.googleusercontent.com"
-GOOGLE_CLIENT_SECRET="[Your Google OAuth Client Secret]"
-
-# Demo Mode (optional)
-USE_DEMO_AUTH="false"
+# Use .env.local for local development
+# NEVER commit this file to version control
+# Copy values from .env.example and fill in your actual credentials
 ```
 
-#### Production (Vercel Dashboard)
-- `POSTGRES_*` variables are automatically added when creating Vercel Postgres database
-- `NEXTAUTH_URL` must be `https://health-tracker-neon.vercel.app` (or your custom domain)
-- `NEXTAUTH_SECRET` must be a secure random string (32+ chars)
-- Same Google OAuth credentials as development (unless using separate OAuth app)
-
-**Important**: 
-- The project uses `.env.local` for local development
-- Never commit `.env.local` to version control
-- Never commit real OAuth credentials to the repository
-- Always use placeholders in documentation and example files
-- The `.env` file may contain outdated Prisma Accelerate URLs that won't work
+#### Production Environment Variables
+- Store in `.env.production` locally (gitignored)
+- Deploy to Vercel using Dashboard or CLI
+- Never commit production credentials to repository
 
 ### CSS and Theming
 - Tailwind CSS with custom properties for theming
@@ -242,19 +276,22 @@ npx playwright codegen http://localhost:3000
 4. **CSS Build Errors**: Use direct CSS properties instead of `@apply` for custom values
 5. **API Security**: All API routes check authentication except `/api/auth/*`
 6. **Demo Mode**: Set `USE_DEMO_AUTH=true` for testing without Google OAuth
+7. **Environment Variables**: NEVER hardcode credentials in any file
+8. **Git Commits**: Always scan for secrets before committing
 
 ## Development Workflow
 
 1. Make changes to code
-2. **IMPORTANT**: After editing any file, ALWAYS use the `code-simplifier` agent to review and improve the code (as specified in root CLAUDE.md)
+2. **IMPORTANT**: Check for any hardcoded credentials before committing
 3. If database schema changed: `npm run db:generate` then `npm run db:push`
 4. Test locally with `npm run dev`
 5. Run `npm run build` to check for TypeScript errors
 6. Run `npm run lint` to check for linting issues
 7. Run `npm run format` to format code
 8. Run `npm run test` to execute Playwright tests
-9. Commit changes (credentials are gitignored)
-10. Deploy with `vercel --prod` or push to GitHub for auto-deploy
+9. **BEFORE COMMITTING**: Double-check no secrets are included
+10. Commit changes (credentials are gitignored)
+11. Deploy with `vercel --prod` or push to GitHub for auto-deploy
 
 ## Database Schema Overview
 
@@ -325,22 +362,25 @@ vercel --prod
 # 1. Check current git status
 git status
 
-# 2. Add modified files
+# 2. IMPORTANT: Check for secrets
+grep -r "GOCSPX\|sk-\|pk-\|Bearer\|postgres://" --include="*.ts" --include="*.tsx" --include="*.js" --include="*.sh" .
+
+# 3. Add modified files
 git add <file1> <file2>
 # Or add all changes
 git add .
 
-# 3. Create commit with meaningful message
+# 4. Create commit with meaningful message
 git commit -m "Your descriptive commit message"
 
-# 4. Deploy to production
+# 5. Deploy to production
 vercel --prod
 ```
 
 ### Example Deployment After Bug Fix
 ```bash
 # 1. Fix the bug in your code
-# 2. Use code-simplifier to review changes (IMPORTANT!)
+# 2. Check for any hardcoded secrets
 # 3. Test the fix locally
 npm run dev
 
@@ -379,28 +419,49 @@ After deployment, always verify:
 
 ### Common Issues and Solutions
 
-1. **Database Connection Failures**
+1. **GitHub Push Protection Blocks**
+   - **Cause**: Hardcoded credentials detected in commit
+   - **Solution**: 
+     - Remove credentials from files
+     - Use environment variables instead
+     - Amend commit: `git commit --amend`
+     - Force push: `git push --force-with-lease`
+   - **Prevention**: Always use `.env` files and check before committing
+
+2. **Database Connection Failures**
    - Verify all `POSTGRES_*` env vars are set in Vercel
    - Ensure database and deployment regions match
    - Check connection string includes `?sslmode=require`
    - For pooled connections, ensure `?pgbouncer=true` is included
 
-2. **Google OAuth Errors**
+3. **Google OAuth Errors**
    - "redirect_uri_mismatch": Check exact URI in Google Console
    - Include both www and non-www variants if using custom domain
    - NEXTAUTH_URL must match your production URL exactly
 
-3. **Build Failures**
+4. **Build Failures**
    - "Cannot find module": Run `npm install` locally and commit `package-lock.json`
    - TypeScript errors: Run `npm run build` locally first
    - Prisma errors: Ensure `postinstall` script runs `prisma generate`
 
-4. **Runtime Errors**
+5. **Runtime Errors**
    - Check Function Logs in Vercel Dashboard
    - "Invalid NEXTAUTH_SECRET": Must be 32+ characters
    - "Database schema drift": Run `npx prisma migrate deploy`
 
-5. **PWA Issues**
+6. **PWA Issues**
    - Clear browser cache and service worker
    - Check manifest.json is accessible at `/manifest.json`
    - Verify HTTPS is enabled (required for PWA)
+
+## Security Checklist Before Each Commit
+
+- [ ] No API keys hardcoded
+- [ ] No OAuth secrets in code
+- [ ] No database passwords visible
+- [ ] No JWT/NextAuth secrets exposed
+- [ ] All credentials in `.env` files
+- [ ] `.env` files are gitignored
+- [ ] Used `.env.example` for documentation
+- [ ] Scanned for base64 encoded secrets
+- [ ] Verified with `git diff --cached` before commit
