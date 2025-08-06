@@ -288,12 +288,12 @@ export function isFreeTierModel(provider: string, modelId: string): boolean {
   const model = getModelConfig(provider, modelId)
   if (!model) return false
   
-  return model.costPer1kTokens === 0 || !!model.freeQuota
+  return model.costPer1kTokens === 0 || !!(model as any).freeQuota
 }
 
 // Helper function to get rate limits for a model
 export function getModelRateLimits(provider: string, modelId: string) {
-  const model = getModelConfig(provider, modelId)
+  const model = getModelConfig(provider, modelId) as any
   if (!model?.freeQuota) {
     return LLM_CONFIG.rateLimits
   }
